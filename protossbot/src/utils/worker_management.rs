@@ -24,18 +24,13 @@ fn reassign_finished_builders(_game: &Game, workers: &[Unit], state: &mut GameSt
     let worker_id = worker.get_id();
     
     if let Some(cmd) = state.intended_commands.get(&worker_id) {
-      // For building commands, only remove if the worker was constructing and now is not
-      // This prevents premature removal when the worker is still moving to the build site
       if cmd.order == Order::PlaceBuilding {
-        // Worker finished if it WAS constructing but no longer is and is idle
-        // We check the actual order to see if it's moved on from building
         let current_order = worker.get_order();
         if worker.is_idle() && current_order != Order::PlaceBuilding && current_order != Order::ConstructingBuilding {
-          println!("Worker {} finished building, reassigning to minerals", worker_id);
+          println!("Worker {} with order {:?} finished building, reassigning to minerals", worker_id, current_order);
           state.intended_commands.remove(&worker_id);
         }
       } else if cmd.order == Order::Train && worker.is_idle() && !worker.is_training() {
-        // For training, the original logic is fine
         state.intended_commands.remove(&worker_id);
       }
     }
@@ -45,14 +40,12 @@ fn reassign_finished_builders(_game: &Game, workers: &[Unit], state: &mut GameSt
 fn assign_worker_to_mineral(game: &Game, worker: &Unit, state: &mut GameState) {
   let worker_id = worker.get_id();
 
-  // Don't reassign workers that have a non-mining intended command
   if let Some(cmd) = state.intended_commands.get(&worker_id) {
     if cmd.order != Order::MiningMinerals {
       return;
     }
   }
 
-  // Only assign idle workers
   if !worker.is_idle() {
     return;
   }
