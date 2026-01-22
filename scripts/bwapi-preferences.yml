@@ -1,0 +1,78 @@
+auto_menu: SINGLE_PLAYER
+# auto_menu: OFF
+# auto_menu: LAN
+# auto_menu: BATTLE_NET
+
+map: maps/BroodWar/(2)Benzene.scx
+# map: maps/BroodWar/IceHunter.scm
+# map: maps/(2)Boxer.scm
+
+player_race: Zerg
+# player_race: Terran
+# player_race: Protoss
+# player_race: Random
+
+enemy_count: 1
+enemy_count: 2
+
+computer_races:
+  - Random
+  # - Terran
+  # - Zerg
+  # - Random
+  # - Default
+  # - Default
+  # - Default
+
+game_type: MELEE
+# game_type: TEAM_MELEE
+
+auto_restart: OFF
+# auto_restart: ON
+
+save_replay: "maps/replays/%BOTNAME6%/$Y $b $d/%MAP%_%BOTRACE%%ALLYRACES%vs%ENEMYRACES%_$H$M$S.rep"
+
+windowed: OFF
+# windowed: ON
+
+window_left: 1556
+window_top: 704
+window_width: 640
+window_height: 480
+
+# sound: ON
+sound: OFF
+
+screenshots: gif
+
+drop_players: OFF
+
+shared_memory: ON
+
+holiday: ON
+
+# AI module paths
+# ai_module: bwapi-data/AI/ExampleAIModule.dll
+# ai_module_debug: bwapi-data/AI/ExampleAIModuled.dll
+# Tournament module (only for tournaments in RELEASE mode)
+# tournament_module:
+
+# Network game settings
+# wait_for_min_players: 2
+# wait_for_max_players: 8
+# wait_for_time: 60000
+
+# Console settings: TRUE | FALSE
+# console_attach_on_startup: FALSE
+# console_alloc_on_startup: FALSE
+# console_attach_auto: TRUE
+# console_alloc_auto: TRUE
+
+# Speed override (-1 for default, or milliseconds per frame)
+# speed_override: -1
+
+# Random seed override (decimal integer, commented = use system time)
+# seed_override: 123456789
+
+double_size: ON
+# double_size: OFF

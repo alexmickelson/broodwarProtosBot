@@ -1,0 +1,14 @@
+[build]
+# Target 64-bit Windows for modern tournament compatibility
+target = "x86_64-pc-windows-gnu"
+
+[target.x86_64-pc-windows-gnu]
+# Linker and rustflags will be set by Nix flake via environment variables:
+# - CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER
+# - CARGO_TARGET_X86_64_PC_WINDOWS_GNU_RUSTFLAGS
+# Falls back to system linker if not in Nix shell
+linker = "x86_64-w64-mingw32-gcc"
+
+[env]
+# TARGET environment variable helps bindgen know we're cross-compiling
+TARGET = "x86_64-pc-windows-gnu"

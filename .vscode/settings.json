@@ -1,0 +1,59 @@
+{
+  "files.exclude": {
+    "**/target/**": true,
+    "**/starcraft/**": true,
+    "**/starcraft": true,
+    "**/.wine/**": true,
+    "**/.wine": true,
+    "**/wine/**": true,
+    "**/bin_linux/**": true,
+    "**/bin_linux": true,
+    "**/.direnv/**": true,
+    "**/.direnv": true
+  },
+  "files.watcherExclude": {
+    "**/target/**": true,
+    "**/node_modules/**": true,
+    "**/.git/**": true,
+    "**/wine/**": true,
+    "**/.wine/**": true,
+    "**/.wine": true,
+    "**/bin_linux/**": true,
+    "**/bin_linux": true,
+    "**/starcraft/**": true,
+    "**/starcraft": true,
+    "**/.direnv/**": true,
+    "**/.direnv": true
+  },
+  "search.exclude": {
+    "**/target/**": true,
+    "**/node_modules/**": true,
+    "**/wine/**": true,
+    "**/.wine/**": true,
+    "**/bin_linux/**": true,
+    "**/starcraft/**": true,
+    "**/.direnv/**": true
+  },
+  "rust-analyzer.files.exclude": [
+    "starcraft",
+    ".wine",
+    "bin_linux",
+    "src",
+    ".direnv",
+    "wine"
+  ],
+  "rust-analyzer.linkedProjects": ["protossbot/Cargo.toml"],
+  "rust-analyzer.cargo.target": "x86_64-pc-windows-gnu",
+  "rust-analyzer.cargo.features": "all",
+  "rust-analyzer.check.allTargets": false,
+  "rust-analyzer.check.features": "all",
+  "cSpell.words": [
+    "chokepoint",
+    "onframe",
+    "pathing",
+    "Protoss",
+    "rsbwapi",
+    "Zerg",
+    "Zergling"
+  ]
+}
