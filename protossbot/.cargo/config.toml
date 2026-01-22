@@ -8,6 +8,7 @@ target = "x86_64-pc-windows-gnu"
 # - CARGO_TARGET_X86_64_PC_WINDOWS_GNU_RUSTFLAGS
 # Falls back to system linker if not in Nix shell
 linker = "x86_64-w64-mingw32-gcc"
+rustflags = ["-C", "link-args=-static-libgcc -static-libstdc++"]
 
 [env]
 # TARGET environment variable helps bindgen know we're cross-compiling

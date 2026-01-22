@@ -3,17 +3,18 @@ auto_menu: SINGLE_PLAYER
 # auto_menu: LAN
 # auto_menu: BATTLE_NET
 
-map: maps/BroodWar/(2)Benzene.scx
+map: maps/BroodWar/(4)CircuitBreaker.scx
+# map: maps/BroodWar/(2)Benzene.scx
 # map: maps/BroodWar/IceHunter.scm
 # map: maps/(2)Boxer.scm
 
-player_race: Zerg
+# player_race: Zerg
 # player_race: Terran
-# player_race: Protoss
+player_race: Protoss
 # player_race: Random
 
-enemy_count: 1
-enemy_count: 2
+# enemy_count: 1
+enemy_count: 3
 
 computer_races:
   - Random
@@ -24,7 +25,8 @@ computer_races:
   # - Default
   # - Default
 
-game_type: MELEE
+game_type: FREE_FOR_ALL
+# game_type: MELEE
 # game_type: TEAM_MELEE
 
 auto_restart: OFF

@@ -134,7 +134,7 @@ auto_menu = $AUTO_MENU
 ; if FIRST (default), use the first character in the list
 ; if WAIT, stop at this screen
 ; else the character with the given value is used/created
-character_name = FIRST
+character_name = ProtossPest
 
 ; pause_dbg = ON | OFF
 ; This specifies if auto_menu will pause until a debugger is attached to the process.

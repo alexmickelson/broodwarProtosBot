@@ -1,10 +1,18 @@
-use std::sync::{Arc, Mutex};
-
 use rsbwapi::*;
+use std::sync::{Arc, Mutex};
+use crate::{state::game_state::GameState, utils::{build_manager, worker_management}};
 
-use crate::game_state::GameState;
+fn draw_unit_ids(game: &Game) {
+  for unit in game.get_all_units() {
+    if unit.exists() {
+      let pos = unit.get_position();
+      let unit_id = unit.get_id();
+      game.draw_text_map(pos, &format!("{}", unit_id));
+    }
+  }
+}
 
-impl AiModule for RustBot {
+impl AiModule for ProtosBot {
   fn on_start(&mut self, game: &Game) {
     // SAFETY: rsbwapi uses interior mutability (RefCell) for the command queue.
     // enable_flag only adds a command to the queue.
@@ -15,7 +23,6 @@ impl AiModule for RustBot {
     }
 
     println!("Game started on map: {}", game.map_file_name());
-
   }
 
   fn on_frame(&mut self, game: &Game) {
@@ -24,6 +31,15 @@ impl AiModule for RustBot {
       return;
     };
 
+    let Some(player) = game.self_() else {
+      return;
+    };
+
+    build_manager::on_frame(game, &player, &mut locked_state);
+    worker_management::assign_idle_workers_to_minerals(game, &player, &mut locked_state);
+
+    build_manager::print_debug_build_status(game, &player, &locked_state);
+    draw_unit_ids(game);
   }
 
   fn on_unit_create(&mut self, game: &Game, unit: Unit) {
@@ -33,19 +49,14 @@ impl AiModule for RustBot {
     println!("unit created: {:?}", unit.get_type());
   }
 
-  fn on_unit_morph(&mut self, game: &Game, unit: Unit) {
+  fn on_unit_morph(&mut self, _game: &Game, _unit: Unit) {}
 
-  }
+  fn on_unit_destroy(&mut self, _game: &Game, _unit: Unit) {}
 
-  fn on_unit_destroy(&mut self, _game: &Game, unit: Unit) {
-  
-  }
-
-  fn on_unit_complete(&mut self, game: &Game, unit: Unit) {
-    let Some(player) = game.self_() else {
-      return;
-    };
-
+  fn on_unit_complete(&mut self, _game: &Game, _unit: Unit) {
+    // let Some(player) = game.self_() else {
+    //   return;
+    // };
   }
 
   fn on_end(&mut self, _game: &Game, is_winner: bool) {
@@ -56,14 +67,13 @@ impl AiModule for RustBot {
     }
   }
 }
-pub struct RustBot {
+
+pub struct ProtosBot {
   game_state: Arc<Mutex<GameState>>,
 }
 
-impl RustBot {
+impl ProtosBot {
   pub fn new(game_state: Arc<Mutex<GameState>>) -> Self {
-    Self {
-      game_state,
-    }
+    Self { game_state }
   }
 }

@@ -1,9 +1,10 @@
 mod bot;
-pub mod game_state;
+mod state;
+mod utils;
 
-use bot::RustBot;
+use bot::ProtosBot;
 use std::sync::{Arc, Mutex};
-use game_state::GameState;
+use state::game_state::GameState;
 
 
 fn main() {
@@ -11,5 +12,5 @@ fn main() {
 
   let game_state = Arc::new(Mutex::new(GameState::default()));
 
-  rsbwapi::start(move |_game| RustBot::new(game_state.clone() ));
+  rsbwapi::start(move |_game| ProtosBot::new(game_state.clone() ));
 }
