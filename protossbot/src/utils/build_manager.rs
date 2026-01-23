@@ -6,17 +6,14 @@ use crate::{
 };
 
 pub fn on_frame(game: &Game, player: &Player, state: &mut GameState) {
+  cleanup_stale_commands(player, state);
   check_and_advance_stage(player, state);
-
-  // Update stage item status
   state.stage_item_status = get_status_for_stage_items(game, player, state);
 
   try_start_next_build(game, player, state);
 }
 
 pub fn on_building_create(unit: &Unit, state: &mut GameState) {
-  // Find the build history entry associated with this building type
-  // and remove the probe's assignment
   if let Some(entry) = state
     .unit_build_history
     .iter()
@@ -35,12 +32,38 @@ pub fn on_building_create(unit: &Unit, state: &mut GameState) {
   }
 }
 
+fn cleanup_stale_commands(player: &Player, state: &mut GameState) {
+  let unit_ids: Vec<usize> = player.get_units().iter().map(|u| u.get_id()).collect();
+
+  state.intended_commands.retain(|unit_id, cmd| {
+    // Remove if unit no longer exists
+    if !unit_ids.contains(unit_id) {
+      return false;
+    }
+
+    // Find the unit
+    if let Some(unit) = player.get_units().iter().find(|u| u.get_id() == *unit_id) {
+      // For PlaceBuilding orders, check if unit is actually constructing or idle
+      if cmd.order == Order::PlaceBuilding {
+        // Keep command only if unit is moving to build location or constructing
+        return unit.is_constructing() || unit.get_order() == Order::PlaceBuilding;
+      }
+      // For Train orders, check if the building is training
+      if cmd.order == Order::Train {
+        return unit.is_training();
+      }
+    }
+
+    false
+  });
+}
+
 fn try_start_next_build(game: &Game, player: &Player, state: &mut GameState) {
   let Some(unit_type) = get_next_thing_to_build(game, player, state) else {
     return;
   };
 
-  let Some(builder) = find_builder_for_unit(player, unit_type) else {
+  let Some(builder) = find_builder_for_unit(player, unit_type, state) else {
     return;
   };
 
@@ -66,7 +89,7 @@ fn try_start_next_build(game: &Game, player: &Player, state: &mut GameState) {
 }
 
 fn get_status_for_stage_items(
-  game: &Game,
+  _game: &Game,
   player: &Player,
   state: &GameState,
 ) -> std::collections::HashMap<String, String> {
@@ -105,17 +128,7 @@ fn get_status_for_stage_items(
     }
 
     if unit_type.is_building() {
-      if let Some(builder) = find_builder_for_unit(player, *unit_type) {
-        let build_location =
-          build_location_utils::find_build_location(game, &builder, *unit_type, 20);
-        if build_location.is_none() {
-          status_map.insert(
-            unit_name,
-            format!("No build location ({}/{})", current_count, desired_count),
-          );
-          continue;
-        }
-      } else {
+      if find_builder_for_unit(player, *unit_type, state).is_none() {
         status_map.insert(
           unit_name,
           format!("No builder available ({}/{})", current_count, desired_count),
@@ -136,7 +149,7 @@ fn get_status_for_stage_items(
 fn get_next_thing_to_build(game: &Game, player: &Player, state: &GameState) -> Option<UnitType> {
   let current_stage = state.build_stages.get(state.current_stage_index)?;
 
-  if let Some(pylon) = check_need_more_supply(game, player) {
+  if let Some(pylon) = check_need_more_supply(game, player, state) {
     return Some(pylon);
   }
 
@@ -161,7 +174,7 @@ fn get_next_thing_to_build(game: &Game, player: &Player, state: &GameState) -> O
     .max_by_key(|unit_type| unit_type.mineral_price() + unit_type.gas_price())
 }
 
-fn check_need_more_supply(game: &Game, player: &Player) -> Option<UnitType> {
+fn check_need_more_supply(game: &Game, player: &Player, state: &GameState) -> Option<UnitType> {
   let supply_used = player.supply_used();
   let supply_total = player.supply_total();
 
@@ -176,9 +189,9 @@ fn check_need_more_supply(game: &Game, player: &Player) -> Option<UnitType> {
     let pylon_type = UnitType::Protoss_Pylon;
 
     if can_afford_unit(player, pylon_type) {
-      if let Some(builder) = find_builder_for_unit(player, pylon_type) {
+      if let Some(builder) = find_builder_for_unit(player, pylon_type, state) {
         let build_location =
-          build_location_utils::find_build_location(game, &builder, pylon_type, 20);
+          build_location_utils::find_build_location(game, &builder, pylon_type, 25);
         if build_location.is_some() {
           return Some(pylon_type);
         }
@@ -189,14 +202,22 @@ fn check_need_more_supply(game: &Game, player: &Player) -> Option<UnitType> {
   None
 }
 
-fn find_builder_for_unit(player: &Player, unit_type: UnitType) -> Option<rsbwapi::Unit> {
+fn find_builder_for_unit(
+  player: &Player,
+  unit_type: UnitType,
+  state: &GameState,
+) -> Option<rsbwapi::Unit> {
   let builder_type = unit_type.what_builds().0;
 
   player
     .get_units()
     .iter()
     .find(|u| {
-      u.get_type() == builder_type && !u.is_constructing() && !u.is_training() && u.is_idle()
+      u.get_type() == builder_type
+        && !u.is_constructing()
+        && !u.is_training()
+        && (u.is_idle() || u.is_gathering_minerals() || u.is_gathering_gas())
+        && !state.intended_commands.contains_key(&u.get_id())
     })
     .cloned()
 }
@@ -210,7 +231,7 @@ fn assign_builder_to_construct(
   let builder_id = builder.get_id();
 
   if unit_type.is_building() {
-    let build_location = build_location_utils::find_build_location(game, builder, unit_type, 20);
+    let build_location = build_location_utils::find_build_location(game, builder, unit_type, 25);
 
     if let Some(pos) = build_location {
       println!(
