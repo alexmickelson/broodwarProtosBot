@@ -20,11 +20,6 @@ INSTALL_DIR="$PROJECT_DIR/starcraft"
 
 SC_WIN_PATH="$(winepath -w "$INSTALL_DIR" 2>/dev/null || echo "Z:${INSTALL_DIR}" | sed 's/\//\\\\/g')\\\\"
 
-# if wine REG QUERY "HKEY_LOCAL_MACHINE\\SOFTWARE\\Blizzard Entertainment\\Starcraft" /v InstallPath >/dev/null 2>&1; then
-#     echo "Registry already configured, skipping..."
-#     exit 0
-# fi
-
 echo "Configuring registry..."
 # Core registry entries
 wine REG ADD "HKEY_LOCAL_MACHINE\\SOFTWARE\\Blizzard Entertainment\\Starcraft" \

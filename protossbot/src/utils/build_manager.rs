@@ -7,6 +7,10 @@ use crate::{
 
 pub fn on_frame(game: &Game, player: &Player, state: &mut GameState) {
   check_and_advance_stage(player, state);
+
+  // Update stage item status
+  state.stage_item_status = get_status_for_stage_items(game, player, state);
+
   try_start_next_build(game, player, state);
 }
 
@@ -61,6 +65,74 @@ fn try_start_next_build(game: &Game, player: &Player, state: &mut GameState) {
   }
 }
 
+fn get_status_for_stage_items(
+  game: &Game,
+  player: &Player,
+  state: &GameState,
+) -> std::collections::HashMap<String, String> {
+  let mut status_map = std::collections::HashMap::new();
+
+  let Some(current_stage) = state.build_stages.get(state.current_stage_index) else {
+    return status_map;
+  };
+
+  for (unit_type, &desired_count) in &current_stage.desired_counts {
+    let unit_name = unit_type.name().to_string();
+    let current_count = count_units_of_type(player, state, *unit_type);
+
+    if current_count >= desired_count {
+      status_map.insert(
+        unit_name,
+        format!("Complete ({}/{})", current_count, desired_count),
+      );
+      continue;
+    }
+
+    if !can_afford_unit(player, *unit_type) {
+      let minerals_short = unit_type.mineral_price() - player.minerals();
+      let gas_short = unit_type.gas_price() - player.gas();
+      status_map.insert(
+        unit_name,
+        format!(
+          "Need {} minerals, {} gas ({}/{})",
+          minerals_short.max(0),
+          gas_short.max(0),
+          current_count,
+          desired_count
+        ),
+      );
+      continue;
+    }
+
+    if unit_type.is_building() {
+      if let Some(builder) = find_builder_for_unit(player, *unit_type) {
+        let build_location =
+          build_location_utils::find_build_location(game, &builder, *unit_type, 20);
+        if build_location.is_none() {
+          status_map.insert(
+            unit_name,
+            format!("No build location ({}/{})", current_count, desired_count),
+          );
+          continue;
+        }
+      } else {
+        status_map.insert(
+          unit_name,
+          format!("No builder available ({}/{})", current_count, desired_count),
+        );
+        continue;
+      }
+    }
+
+    status_map.insert(
+      unit_name,
+      format!("Ready to build ({}/{})", current_count, desired_count),
+    );
+  }
+
+  status_map
+}
+
 fn get_next_thing_to_build(game: &Game, player: &Player, state: &GameState) -> Option<UnitType> {
   let current_stage = state.build_stages.get(state.current_stage_index)?;
 
@@ -68,6 +140,7 @@ fn get_next_thing_to_build(game: &Game, player: &Player, state: &GameState) -> O
     return Some(pylon);
   }
 
+  let status_map = get_status_for_stage_items(game, player, state);
   let mut candidates = Vec::new();
 
   for (unit_type, &desired_count) in &current_stage.desired_counts {
@@ -77,20 +150,10 @@ fn get_next_thing_to_build(game: &Game, player: &Player, state: &GameState) -> O
       continue;
     }
 
-    if !can_afford_unit(player, *unit_type) {
-      continue;
+    let status = status_map.get(&unit_type.name().to_string());
+    if status.is_some() && status.unwrap().starts_with("Ready to build") {
+      candidates.push(*unit_type);
     }
-
-    if unit_type.is_building() {
-      let builder = find_builder_for_unit(player, *unit_type)?;
-      let build_location =
-        build_location_utils::find_build_location(game, &builder, *unit_type, 20);
-      if build_location.is_none() {
-        continue;
-      }
-    }
-
-    candidates.push(*unit_type);
   }
 
   candidates

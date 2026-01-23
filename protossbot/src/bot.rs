@@ -48,6 +48,18 @@ impl AiModule for ProtosBot {
     build_manager::on_frame(game, &player, &mut locked_state);
     worker_management::assign_idle_workers_to_minerals(game, &player, &mut locked_state);
 
+    // Update web server with current build status
+    let stage_name = locked_state
+      .build_stages
+      .get(locked_state.current_stage_index)
+      .map(|s| s.name.clone())
+      .unwrap_or_else(|| "Unknown".to_string());
+    self.build_status.update(
+      stage_name,
+      locked_state.current_stage_index,
+      locked_state.stage_item_status.clone(),
+    );
+
     build_manager::print_debug_build_status(game, &player, &locked_state);
     draw_unit_ids(game);
   }
@@ -92,10 +104,19 @@ impl AiModule for ProtosBot {
 pub struct ProtosBot {
   game_state: Arc<Mutex<GameState>>,
   shared_speed: crate::web_server::SharedGameSpeed,
+  build_status: crate::web_server::SharedBuildStatus,
 }
 
 impl ProtosBot {
-  pub fn new(game_state: Arc<Mutex<GameState>>, shared_speed: crate::web_server::SharedGameSpeed) -> Self {
-    Self { game_state, shared_speed }
+  pub fn new(
+    game_state: Arc<Mutex<GameState>>,
+    shared_speed: crate::web_server::SharedGameSpeed,
+    build_status: crate::web_server::SharedBuildStatus,
+  ) -> Self {
+    Self {
+      game_state,
+      shared_speed,
+      build_status,
+    }
   }
 }

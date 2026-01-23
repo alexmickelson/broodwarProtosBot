@@ -6,6 +6,7 @@ use axum::{
   Json, Router,
 };
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tower_http::{cors::CorsLayer, services::ServeDir};
 
@@ -30,6 +31,48 @@ impl SharedGameSpeed {
   }
 }
 
+#[derive(Clone, Default)]
+pub struct BuildStatusData {
+  pub stage_name: String,
+  pub stage_index: usize,
+  pub item_status: HashMap<String, String>,
+}
+
+#[derive(Clone)]
+pub struct SharedBuildStatus {
+  data: Arc<Mutex<BuildStatusData>>,
+}
+
+impl SharedBuildStatus {
+  pub fn new() -> Self {
+    Self {
+      data: Arc::new(Mutex::new(BuildStatusData::default())),
+    }
+  }
+
+  pub fn update(
+    &self,
+    stage_name: String,
+    stage_index: usize,
+    item_status: HashMap<String, String>,
+  ) {
+    let mut data = self.data.lock().unwrap();
+    data.stage_name = stage_name;
+    data.stage_index = stage_index;
+    data.item_status = item_status;
+  }
+
+  pub fn get(&self) -> BuildStatusData {
+    self.data.lock().unwrap().clone()
+  }
+}
+
+#[derive(Clone)]
+struct AppState {
+  game_speed: SharedGameSpeed,
+  build_status: SharedBuildStatus,
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct GameSpeedResponse {
   pub speed: i32,
@@ -40,13 +83,26 @@ pub struct GameSpeedRequest {
   pub speed: i32,
 }
 
-async fn get_game_speed(State(state): State<SharedGameSpeed>) -> Response {
-  let speed = state.get();
+#[derive(Serialize, Deserialize)]
+pub struct BuildStatusResponse {
+  pub stage_name: String,
+  pub stage_index: usize,
+  pub items: Vec<BuildItemStatusInfo>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct BuildItemStatusInfo {
+  pub unit_name: String,
+  pub status: String,
+}
+
+async fn get_game_speed(State(app_state): State<AppState>) -> Response {
+  let speed = app_state.game_speed.get();
   (StatusCode::OK, Json(GameSpeedResponse { speed })).into_response()
 }
 
 async fn set_game_speed(
-  State(state): State<SharedGameSpeed>,
+  State(app_state): State<AppState>,
   Json(payload): Json<GameSpeedRequest>,
 ) -> Response {
   if payload.speed < -1 || payload.speed > 1000 {
@@ -57,7 +113,7 @@ async fn set_game_speed(
       .into_response();
   }
 
-  state.set(payload.speed);
+  app_state.game_speed.set(payload.speed);
 
   (
     StatusCode::OK,
@@ -68,17 +124,44 @@ async fn set_game_speed(
     .into_response()
 }
 
-pub async fn start_web_server(shared_speed: SharedGameSpeed) {
+async fn get_build_status(State(app_state): State<AppState>) -> Response {
+  let data = app_state.build_status.get();
+
+  let items: Vec<BuildItemStatusInfo> = data
+    .item_status
+    .iter()
+    .map(|(unit_name, status)| BuildItemStatusInfo {
+      unit_name: unit_name.clone(),
+      status: status.clone(),
+    })
+    .collect();
+
+  let response = BuildStatusResponse {
+    stage_name: data.stage_name,
+    stage_index: data.stage_index,
+    items,
+  };
+
+  (StatusCode::OK, Json(response)).into_response()
+}
+
+pub async fn start_web_server(shared_speed: SharedGameSpeed, build_status: SharedBuildStatus) {
   let static_dir = std::env::current_dir().unwrap().join("static");
 
   let cors = CorsLayer::very_permissive();
 
+  let app_state = AppState {
+    game_speed: shared_speed,
+    build_status,
+  };
+
   let app = Router::new()
     .route("/api/speed", get(get_game_speed))
     .route("/api/speed", post(set_game_speed))
+    .route("/api/build-status", get(get_build_status))
     .layer(cors)
     .fallback_service(ServeDir::new(static_dir))
-    .with_state(shared_speed);
+    .with_state(app_state);
 
   let addr = "127.0.0.1:3333";
 
