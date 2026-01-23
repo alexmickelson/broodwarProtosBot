@@ -31,13 +31,19 @@ pub fn get_build_stages() -> Vec<BuildStage> {
       .with_unit(UnitType::Terran_Supply_Depot, 2)
       .with_unit(UnitType::Terran_Barracks, 1)
       .with_unit(UnitType::Terran_Refinery, 1),
-    // Stage 2: Defense bunker
     BuildStage::new("Defense Bunker")
       .with_unit(UnitType::Terran_SCV, 16)
       .with_unit(UnitType::Terran_Supply_Depot, 3)
       .with_unit(UnitType::Terran_Command_Center, 1)
       .with_unit(UnitType::Terran_Barracks, 1)
-      .with_unit(UnitType::Terran_Refinery, 1)
-      .with_unit(UnitType::Terran_Bunker, 2),
+      .with_unit(UnitType::Terran_Refinery, 1),
+
+    BuildStage::new("Mid Game")
+      .with_unit(UnitType::Terran_SCV, 20)
+      .with_unit(UnitType::Terran_Supply_Depot, 4)
+      .with_unit(UnitType::Terran_Command_Center, 2)
+      .with_unit(UnitType::Terran_Barracks, 2)
+      .with_unit(UnitType::Terran_Refinery, 2)
+      .with_unit(UnitType::Terran_Missile_Turret, 2),
   ]
 }

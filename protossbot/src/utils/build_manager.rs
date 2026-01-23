@@ -13,39 +13,53 @@ pub fn on_frame(game: &Game, player: &Player, state: &mut GameState) {
 }
 
 pub fn on_building_create(unit: &Unit, state: &mut GameState) {
+  // When a building is created, clear any intended command for the worker that was assigned to build it.
   if let Some(entry) = state
     .unit_build_history
     .iter()
     .rev()
     .find(|e| e.unit_type == Some(unit.get_type()))
   {
-    if let Some(probe_id) = entry.assigned_unit_id {
-      state.intended_commands.remove(&probe_id);
+    if let Some(builder_id) = entry.assigned_unit_id {
+      state.intended_commands.remove(&builder_id);
       println!(
-        "Building {} started. Removed assignment for probe {}",
+        "Building {} started. Removed assignment for worker {}",
         unit.get_type().name(),
-        probe_id
+        builder_id
+      );
+    }
+  }
+}
+
+/// Called when a non‑building unit (e.g., a trained unit) is created.
+/// This clears any pending assignment for the building that trained it.
+pub fn on_unit_create(unit: &Unit, state: &mut GameState) {
+  // Find the most recent history entry for this unit type.
+  if let Some(entry) = state
+    .unit_build_history
+    .iter()
+    .rev()
+    .find(|e| e.unit_type == Some(unit.get_type()))
+  {
+    if let Some(builder_id) = entry.assigned_unit_id {
+      // For training, we didn't store an intended command, but clear just in case.
+      state.intended_commands.remove(&builder_id);
+      println!(
+        "Unit {} created. Cleared assignment for builder {}",
+        unit.get_type().name(),
+        builder_id
       );
     }
   }
 }
 
 fn cleanup_stale_commands(player: &Player, state: &mut GameState) {
+  // Retain intended commands as long as the unit still exists.
+  // The command will be cleared when the building/unit is created (on_building_create) or when the unit dies.
   let unit_ids: Vec<usize> = player.get_units().iter().map(|u| u.get_id()).collect();
-  state.intended_commands.retain(|unit_id, cmd| {
-    if !unit_ids.contains(unit_id) {
-      return false;
-    }
-    if let Some(unit) = player.get_units().iter().find(|u| u.get_id() == *unit_id) {
-      if cmd.order == Order::PlaceBuilding {
-        return unit.is_constructing() || unit.get_order() == Order::PlaceBuilding;
-      }
-      if cmd.order == Order::Train {
-        return unit.is_training();
-      }
-    }
-    false
-  });
+  state
+    .intended_commands
+    .retain(|unit_id, _cmd| unit_ids.contains(unit_id));
 }
 
 fn try_start_next_build(game: &Game, player: &Player, state: &mut GameState) {
@@ -71,29 +85,16 @@ fn try_start_next_build(game: &Game, player: &Player, state: &mut GameState) {
       };
       state.unit_build_history.push(entry);
       let current_stage = &state.build_stages[state.current_stage_index];
-      println!(
-        "Started building {} with unit {} (Stage: {})",
-        unit_type.name(),
-        builder_id,
-        current_stage.name
-      );
     }
   }
 }
 
-fn should_start_next_build(_game: &Game, _player: &Player, state: &mut GameState) -> bool {
-  !has_pending_assignment(state)
+fn should_start_next_build(_game: &Game, player: &Player, state: &mut GameState) -> bool {
+  // Only start a new build if there are no ongoing constructions or training actions.
+  !has_ongoing_constructions(state, player)
 }
 
-fn has_pending_assignment(state: &GameState) -> bool {
-  state.unit_build_history.iter().any(|entry| {
-    if let Some(unit_id) = entry.assigned_unit_id {
-      state.intended_commands.contains_key(&unit_id)
-    } else {
-      false
-    }
-  })
-}
+// Removed: pending assignment tracking now relies on actual unit state via has_ongoing_constructions.
 
 fn has_ongoing_constructions(state: &GameState, player: &Player) -> bool {
   state.unit_build_history.iter().any(|entry| {
@@ -237,12 +238,7 @@ fn assign_builder_to_construct(
       match builder.build(unit_type, pos) {
         Ok(_) => {
           println!("Build command succeeded for {}", unit_type.name());
-          let intended_cmd = IntendedCommand {
-            order: Order::PlaceBuilding,
-            target_position: Some(pos.to_position()),
-            target_unit: None,
-          };
-          state.intended_commands.insert(builder_id, intended_cmd);
+          // No intended command for building actions; the builder (worker) will be tracked via ongoing constructions.
           Some((true, Some(pos)))
         }
         Err(e) => {
@@ -261,12 +257,7 @@ fn assign_builder_to_construct(
   } else {
     match builder.train(unit_type) {
       Ok(_) => {
-        let intended_cmd = IntendedCommand {
-          order: Order::Train,
-          target_position: None,
-          target_unit: None,
-        };
-        state.intended_commands.insert(builder_id, intended_cmd);
+        // No intended command for training; the building will be tracked via ongoing constructions.
         Some((true, None))
       }
       Err(e) => {
@@ -355,93 +346,6 @@ pub fn print_debug_build_status(game: &Game, player: &Player, state: &GameState)
         &format!("{}: {}/{}", unit_type.name(), current_count, desired_count),
       );
       y += 10;
-    }
-  }
-  let has_pending = state.unit_build_history.iter().any(|entry| {
-    if let Some(unit_id) = entry.assigned_unit_id {
-      state.intended_commands.contains_key(&unit_id)
-    } else {
-      false
-    }
-  });
-  for entry in &state.unit_build_history {
-    if let (Some(unit_type), Some(tile_pos), Some(unit_id)) =
-      (entry.unit_type, entry.tile_position, entry.assigned_unit_id)
-    {
-      if state.intended_commands.contains_key(&unit_id) {
-        let pixel_x = tile_pos.x * 32;
-        let pixel_y = tile_pos.y * 32;
-        let width = unit_type.tile_width() * 32;
-        let height = unit_type.tile_height() * 32;
-        use rsbwapi::{Color, Position};
-        let top_left = Position {
-          x: pixel_x,
-          y: pixel_y,
-        };
-        let top_right = Position {
-          x: pixel_x + width,
-          y: pixel_y,
-        };
-        let bottom_left = Position {
-          x: pixel_x,
-          y: pixel_y + height,
-        };
-        let bottom_right = Position {
-          x: pixel_x + width,
-          y: pixel_y + height,
-        };
-        let color = Color::Yellow;
-        game.draw_line_map(top_left, top_right, color);
-        game.draw_line_map(top_right, bottom_right, color);
-        game.draw_line_map(bottom_right, bottom_left, color);
-        game.draw_line_map(bottom_left, top_left, color);
-        let center = Position {
-          x: pixel_x + width / 2,
-          y: pixel_y + height / 2,
-        };
-        game.draw_text_map(center, &format!("Pending: {}", unit_type.name()));
-      }
-    }
-  }
-  if has_pending {
-    use rsbwapi::{Color, Position, TilePosition};
-    if let Some(nexus) = player
-      .get_units()
-      .iter()
-      .find(|u| u.get_type() == UnitType::Protoss_Nexus)
-    {
-      let nexus_tile = nexus.get_tile_position();
-      let radius = 30;
-      for dx in -radius..=radius {
-        for dy in -radius..=radius {
-          let tile_x = nexus_tile.x + dx;
-          let tile_y = nexus_tile.y + dy;
-          if tile_x < 0 || tile_y < 0 {
-            continue;
-          }
-          let tile_pos = TilePosition {
-            x: tile_x,
-            y: tile_y,
-          };
-          let dist_sq = (dx * dx + dy * dy) as f32;
-          if dist_sq > (radius * radius) as f32 {
-            continue;
-          }
-          let is_buildable = game.is_buildable(tile_pos);
-          if !is_buildable {
-            continue;
-          }
-          let has_power = game.has_power(tile_pos, (1, 1));
-          let pixel_x = tile_x * 32;
-          let pixel_y = tile_y * 32;
-          let center = Position {
-            x: pixel_x + 16,
-            y: pixel_y + 16,
-          };
-          let color = if has_power { Color::Green } else { Color::Blue };
-          game.draw_circle_map(center, 3, color, true);
-        }
-      }
     }
   }
 }

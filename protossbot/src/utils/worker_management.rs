@@ -45,13 +45,6 @@ fn assign_worker_to_mineral(game: &Game, worker: &Unit, state: &mut GameState) {
 
   state.intended_commands.insert(worker_id, intended_cmd);
 
-  println!(
-    "Worker {} current order: {:?}, assigning to mine from mineral at {:?}",
-    worker_id,
-    worker.get_order(),
-    mineral.get_position()
-  );
-
   if worker.gather(&mineral).is_ok() {
     println!(
       "Assigned worker {} to mine from mineral at {:?}",

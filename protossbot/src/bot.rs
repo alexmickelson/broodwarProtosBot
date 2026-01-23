@@ -70,16 +70,16 @@ impl AiModule for ProtosBot {
     }
     println!("unit created: {:?}", unit.get_type());
 
-    // Check if the created unit is a building
-    if !unit.get_type().is_building() {
-      return;
-    }
-
+    // If the created unit is a building, handle building creation; otherwise handle unit creation (e.g., trained units).
     let Ok(mut locked_state) = self.game_state.lock() else {
       return;
     };
 
-    build_manager::on_building_create(&unit, &mut locked_state);
+    if unit.get_type().is_building() {
+      build_manager::on_building_create(&unit, &mut locked_state);
+    } else {
+      build_manager::on_unit_create(&unit, &mut locked_state);
+    }
   }
 
   fn on_unit_morph(&mut self, _game: &Game, _unit: Unit) {}

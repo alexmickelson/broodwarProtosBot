@@ -31,13 +31,6 @@
         width: 100%;
       }
 
-      h1 {
-        color: #d4af37;
-        margin-bottom: 30px;
-        font-size: 28px;
-        text-align: center;
-      }
-
       .control-group {
         margin-bottom: 30px;
       }
@@ -60,13 +53,17 @@
         font-weight: bold;
         color: #d4af37;
         display: block;
+        transition: color 0.3s;
+      }
+      .speed-fast {
+        color: #4ade80; /* green */
+      }
+      .speed-slow {
+        color: #f87171; /* red */
       }
 
       .speed-label {
-        color: #999;
-        font-size: 12px;
-        text-transform: uppercase;
-        letter-spacing: 1px;
+        display: none; /* hide label for compact view */
       }
 
       .preset-buttons {
@@ -86,6 +83,10 @@
         transition: all 0.2s ease;
         background: #2d2d2d;
         color: #d4af37;
+      }
+      button.active {
+        background: #d4af37;
+        color: #1e1e1e;
       }
 
       button small {
@@ -201,27 +202,28 @@
   </head>
   <body>
     <div class="container">
-      <h1>⚡ Game Speed Control</h1>
 
-      <div class="speed-display">
-        <span class="speed-value" id="currentSpeed">42</span>
-        <span class="speed-label">Current Speed</span>
-      </div>
 
       <div class="control-group">
-        <label>Select Speed</label>
         <div class="preset-buttons">
-          <button onclick="setSpeed(42)">42<br /><small>Slowest</small></button>
-          <button onclick="setSpeed(1)">1<br /><small>Fast</small></button>
-          <button onclick="setSpeed(0)">0<br /><small>Fastest</small></button>
-          <button onclick="setSpeed(-1)">-1<br /><small>Max</small></button>
+          <button data-speed="42" onclick="setSpeed(42)">
+            42<br /><small>Slowest</small>
+          </button>
+          <button data-speed="1" onclick="setSpeed(1)">
+            1<br /><small>Fast</small>
+          </button>
+          <button data-speed="0" onclick="setSpeed(0)">
+            0<br /><small>Fastest</small>
+          </button>
+          <button data-speed="-1" onclick="setSpeed(-1)">
+            -1<br /><small>Max</small>
+          </button>
         </div>
       </div>
 
       <div id="status" class="status"></div>
 
       <div class="build-status-section">
-        <h2>📋 Build Status</h2>
         <div class="stage-info">
           <div class="stage-name" id="stageName">Loading...</div>
           <ul class="build-items" id="buildItems">
@@ -232,46 +234,52 @@
     </div>
 
     <script id="game-speed-script">
-      const currentSpeedDisplay = document.getElementById("currentSpeed");
-      const statusDiv = document.getElementById("status");
+        const presetButtons = document.querySelectorAll('.preset-buttons button');
+        const statusDiv = document.getElementById('status');
 
-      async function fetchCurrentSpeed() {
-        try {
-          const response = await fetch("http://127.0.0.1:3333/api/speed");
-          if (response.ok) {
-            const data = await response.json();
-            updateSpeedDisplay(data.speed);
-          }
-        } catch (error) {
-          showStatus("Unable to connect to bot", "error");
-        }
-      }
-
-      function updateSpeedDisplay(speed) {
-        currentSpeedDisplay.textContent = speed;
-      }
-
-      async function setSpeed(speed) {
-        try {
-          const response = await fetch("http://127.0.0.1:3333/api/speed", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ speed: speed }),
+        function highlightButton(speed) {
+          presetButtons.forEach(btn => {
+            if (Number(btn.dataset.speed) === speed) {
+              btn.classList.add('active');
+            } else {
+              btn.classList.remove('active');
+            }
           });
+        }
 
+        async function fetchCurrentSpeed() {
+          const response = await fetch('http://127.0.0.1:3333/api/speed');
           if (response.ok) {
             const data = await response.json();
-            updateSpeedDisplay(data.speed);
-            showStatus(`Speed set to ${data.speed}`, "success");
+            highlightButton(data.speed);
+            // Clear any previous error message
+            statusDiv.textContent = '';
+            statusDiv.className = 'status';
           } else {
-            showStatus("Failed to update speed", "error");
+            showStatus('Unable to connect to bot', 'error');
           }
-        } catch (error) {
-          showStatus("Connection error", "error");
         }
-      }
+
+        async function setSpeed(speed) {
+            const response = await fetch('http://127.0.0.1:3333/api/speed', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ speed: speed }),
+            });
+
+            if (response.ok) {
+              const data = await response.json();
+              highlightButton(data.speed);
+              // Clear any previous status message on success
+              statusDiv.textContent = '';
+              statusDiv.className = 'status';
+            } else {
+              showStatus('Failed to update speed', 'error');
+            }
+        }
+
 
       function showStatus(message, type) {
         statusDiv.textContent = message;
