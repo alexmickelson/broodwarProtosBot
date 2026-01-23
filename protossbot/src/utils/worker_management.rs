@@ -1,17 +1,28 @@
-use rsbwapi::{Game, Order, Player, Unit};
+use rsbwapi::{Game, Player, Unit};
 
-use crate::state::game_state::{GameState, IntendedCommand};
+use crate::state::game_state::GameState;
 
 pub fn assign_idle_workers_to_minerals(game: &Game, player: &Player, state: &mut GameState) {
   let all_units = player.get_units();
   let workers: Vec<Unit> = all_units
     .iter()
-    .filter(|u| u.get_type().is_worker() && u.is_completed())
+    .filter(|u| {
+      // Worker must be a completed worker unit
+      u.get_type().is_worker() && u.is_completed()
+    })
     .cloned()
     .collect();
 
-  // Assign idle workers to mining
+  // Assign idle workers that are not already assigned in the build history
   for worker in workers {
+    // Skip if this worker is already recorded as assigned in any ongoing build history entry
+    let already_assigned = state
+      .unit_build_history
+      .iter()
+      .any(|entry| entry.assigned_unit_id == Some(worker.get_id()));
+    if already_assigned {
+      continue;
+    }
     assign_worker_to_mineral(game, &worker, state);
   }
 }
@@ -19,32 +30,26 @@ pub fn assign_idle_workers_to_minerals(game: &Game, player: &Player, state: &mut
 fn assign_worker_to_mineral(game: &Game, worker: &Unit, state: &mut GameState) {
   let worker_id = worker.get_id();
 
-  if let Some(cmd) = state.intended_commands.get(&worker_id) {
-    if cmd.order != Order::MiningMinerals {
-      return;
-    }
-  }
-
-  if !worker.is_idle() {
+  // Skip if the worker is currently assigned to an in‑progress building construction.
+  let has_in_progress_build = state.unit_build_history.iter().any(|entry| {
+    entry.assigned_unit_id == Some(worker_id)
+      && entry.unit_type.map(|ut| ut.is_building()).unwrap_or(false)
+  });
+  if has_in_progress_build {
     return;
   }
 
-  if worker.is_gathering_minerals() || worker.is_gathering_gas() {
+  // Worker must be idle and not already gathering resources.
+  if !worker.is_idle() || worker.is_gathering_minerals() || worker.is_gathering_gas() {
     return;
   }
 
+  // Find a mineral patch to assign.
   let Some(mineral) = find_available_mineral(game, worker, state) else {
     return;
   };
 
-  let intended_cmd = IntendedCommand {
-    order: Order::MiningMinerals,
-    target_position: None,
-    target_unit: Some(mineral.clone()),
-  };
-
-  state.intended_commands.insert(worker_id, intended_cmd);
-
+  // Assign worker to gather minerals (ignore intended command tracking).
   if worker.gather(&mineral).is_ok() {
     println!(
       "Assigned worker {} to mine from mineral at {:?}",
@@ -54,34 +59,17 @@ fn assign_worker_to_mineral(game: &Game, worker: &Unit, state: &mut GameState) {
   }
 }
 
-fn find_available_mineral(game: &Game, worker: &Unit, state: &GameState) -> Option<Unit> {
+fn find_available_mineral(game: &Game, worker: &Unit, _state: &GameState) -> Option<Unit> {
   let worker_pos = worker.get_position();
   let minerals = game.get_static_minerals();
   let mut mineral_list: Vec<Unit> = minerals.iter().filter(|m| m.exists()).cloned().collect();
 
+  // Sort minerals by distance to the worker.
   mineral_list.sort_by_key(|m| {
     let pos = m.get_position();
     ((pos.x - worker_pos.x).pow(2) + (pos.y - worker_pos.y).pow(2)) as i32
   });
 
-  for mineral in mineral_list.iter() {
-    let mineral_id: usize = mineral.get_id();
-
-    let worker_count = state
-      .intended_commands
-      .values()
-      .filter(|cmd| {
-        if let Some(target) = &cmd.target_unit {
-          target.get_id() == mineral_id
-        } else {
-          false
-        }
-      })
-      .count();
-
-    if worker_count < 2 {
-      return Some(mineral.clone());
-    }
-  }
+  // Return the closest mineral, ignoring any intended command tracking.
   mineral_list.first().cloned()
 }

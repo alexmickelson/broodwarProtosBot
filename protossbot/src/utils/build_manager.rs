@@ -1,65 +1,25 @@
-use rsbwapi::{Game, Order, Player, Unit, UnitType};
+use rsbwapi::{Game, Player, Unit, UnitType};
 
 use crate::{
-  state::game_state::{BuildHistoryEntry, GameState, IntendedCommand},
+  state::game_state::{BuildHistoryEntry, GameState},
   utils::build_location_utils,
 };
 
 pub fn on_frame(game: &Game, player: &Player, state: &mut GameState) {
-  cleanup_stale_commands(player, state);
+  // No intended command tracking; directly manage builds and stages.
   check_and_advance_stage(player, state);
   state.stage_item_status = get_status_for_stage_items(game, player, state);
   try_start_next_build(game, player, state);
 }
 
-pub fn on_building_create(unit: &Unit, state: &mut GameState) {
-  // When a building is created, clear any intended command for the worker that was assigned to build it.
-  if let Some(entry) = state
-    .unit_build_history
-    .iter()
-    .rev()
-    .find(|e| e.unit_type == Some(unit.get_type()))
-  {
-    if let Some(builder_id) = entry.assigned_unit_id {
-      state.intended_commands.remove(&builder_id);
-      println!(
-        "Building {} started. Removed assignment for worker {}",
-        unit.get_type().name(),
-        builder_id
-      );
-    }
-  }
+pub fn on_building_create(_unit: &Unit, _state: &mut GameState) {
+  // No intended command tracking needed.
 }
 
 /// Called when a non‑building unit (e.g., a trained unit) is created.
 /// This clears any pending assignment for the building that trained it.
-pub fn on_unit_create(unit: &Unit, state: &mut GameState) {
-  // Find the most recent history entry for this unit type.
-  if let Some(entry) = state
-    .unit_build_history
-    .iter()
-    .rev()
-    .find(|e| e.unit_type == Some(unit.get_type()))
-  {
-    if let Some(builder_id) = entry.assigned_unit_id {
-      // For training, we didn't store an intended command, but clear just in case.
-      state.intended_commands.remove(&builder_id);
-      println!(
-        "Unit {} created. Cleared assignment for builder {}",
-        unit.get_type().name(),
-        builder_id
-      );
-    }
-  }
-}
-
-fn cleanup_stale_commands(player: &Player, state: &mut GameState) {
-  // Retain intended commands as long as the unit still exists.
-  // The command will be cleared when the building/unit is created (on_building_create) or when the unit dies.
-  let unit_ids: Vec<usize> = player.get_units().iter().map(|u| u.get_id()).collect();
-  state
-    .intended_commands
-    .retain(|unit_id, _cmd| unit_ids.contains(unit_id));
+pub fn on_unit_create(_unit: &Unit, _state: &mut GameState) {
+  // No intended command tracking needed for unit creation.
 }
 
 fn try_start_next_build(game: &Game, player: &Player, state: &mut GameState) {
@@ -84,7 +44,6 @@ fn try_start_next_build(game: &Game, player: &Player, state: &mut GameState) {
         tile_position: tile_pos,
       };
       state.unit_build_history.push(entry);
-      let current_stage = &state.build_stages[state.current_stage_index];
     }
   }
 }
@@ -93,8 +52,6 @@ fn should_start_next_build(_game: &Game, player: &Player, state: &mut GameState)
   // Only start a new build if there are no ongoing constructions or training actions.
   !has_ongoing_constructions(state, player)
 }
-
-// Removed: pending assignment tracking now relies on actual unit state via has_ongoing_constructions.
 
 fn has_ongoing_constructions(state: &GameState, player: &Player) -> bool {
   state.unit_build_history.iter().any(|entry| {
@@ -200,7 +157,7 @@ fn check_need_more_supply(_game: &Game, player: &Player, _state: &GameState) -> 
 fn find_builder_for_unit(
   player: &Player,
   unit_type: UnitType,
-  state: &GameState,
+  _state: &GameState,
 ) -> Option<rsbwapi::Unit> {
   let builder_type = unit_type.what_builds().0;
   player
@@ -211,7 +168,6 @@ fn find_builder_for_unit(
         && !u.is_constructing()
         && !u.is_training()
         && (u.is_idle() || u.is_gathering_minerals() || u.is_gathering_gas())
-        && !state.intended_commands.contains_key(&u.get_id())
     })
     .cloned()
 }
