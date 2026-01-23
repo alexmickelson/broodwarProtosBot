@@ -38,6 +38,12 @@ impl AiModule for ProtosBot {
       return;
     };
 
+    // Apply desired game speed
+    unsafe {
+      let game_ptr = game as *const Game as *mut Game;
+      (*game_ptr).set_local_speed(locked_state.desired_game_speed);
+    }
+
     build_manager::on_frame(game, &player, &mut locked_state);
     worker_management::assign_idle_workers_to_minerals(game, &player, &mut locked_state);
 
