@@ -24,23 +24,20 @@ impl BuildStage {
 pub fn get_build_stages() -> Vec<BuildStage> {
   vec![
     BuildStage::new("Start")
-      .with_unit(UnitType::Protoss_Probe, 10)
-      .with_unit(UnitType::Protoss_Pylon, 1),
-
+      .with_unit(UnitType::Terran_SCV, 10)
+      .with_unit(UnitType::Terran_Supply_Depot, 1),
     BuildStage::new("Basic Production")
-      .with_unit(UnitType::Protoss_Probe, 12)
-      .with_unit(UnitType::Protoss_Pylon, 2)
-      .with_unit(UnitType::Protoss_Gateway, 1)
-      .with_unit(UnitType::Protoss_Forge, 1),
-
-
-    // Stage 2: Defense cannons
-    BuildStage::new("Defense Cannons")
-      .with_unit(UnitType::Protoss_Probe, 16)
-      .with_unit(UnitType::Protoss_Pylon, 3)
-      .with_unit(UnitType::Protoss_Nexus, 1)
-      .with_unit(UnitType::Protoss_Gateway, 1)
-      .with_unit(UnitType::Protoss_Forge, 1)
-      .with_unit(UnitType::Protoss_Photon_Cannon, 4),
+      .with_unit(UnitType::Terran_SCV, 12)
+      .with_unit(UnitType::Terran_Supply_Depot, 2)
+      .with_unit(UnitType::Terran_Barracks, 1)
+      .with_unit(UnitType::Terran_Refinery, 1),
+    // Stage 2: Defense bunker
+    BuildStage::new("Defense Bunker")
+      .with_unit(UnitType::Terran_SCV, 16)
+      .with_unit(UnitType::Terran_Supply_Depot, 3)
+      .with_unit(UnitType::Terran_Command_Center, 1)
+      .with_unit(UnitType::Terran_Barracks, 1)
+      .with_unit(UnitType::Terran_Refinery, 1)
+      .with_unit(UnitType::Terran_Bunker, 2),
   ]
 }

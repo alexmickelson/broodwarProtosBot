@@ -9,8 +9,8 @@ map: maps/BroodWar/(4)CircuitBreaker.scx
 # map: maps/(2)Boxer.scm
 
 # player_race: Zerg
-# player_race: Terran
-player_race: Protoss
+player_race: Terran
+# player_race: Protoss
 # player_race: Random
 
 # enemy_count: 1

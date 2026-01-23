@@ -43,5 +43,6 @@ pub struct BuildHistoryEntry {
   pub unit_type: Option<UnitType>,
   pub upgrade_type: Option<UpgradeType>,
   pub assigned_unit_id: Option<usize>,
+  pub tile_position: Option<rsbwapi::TilePosition>,
   // pub status: BuildStatus,
 }

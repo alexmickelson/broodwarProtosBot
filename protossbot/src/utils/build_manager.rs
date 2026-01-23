@@ -69,22 +69,27 @@ fn try_start_next_build(game: &Game, player: &Player, state: &mut GameState) {
 
   let builder_id = builder.get_id();
 
-  if assign_builder_to_construct(game, &builder, unit_type, state) {
-    let entry = BuildHistoryEntry {
-      unit_type: Some(unit_type),
-      upgrade_type: None,
-      assigned_unit_id: Some(builder_id),
-    };
+  if let Some((success, tile_pos)) =
+    assign_builder_to_construct(game, player, &builder, unit_type, state)
+  {
+    if success {
+      let entry = BuildHistoryEntry {
+        unit_type: Some(unit_type),
+        upgrade_type: None,
+        assigned_unit_id: Some(builder_id),
+        tile_position: tile_pos,
+      };
 
-    state.unit_build_history.push(entry);
+      state.unit_build_history.push(entry);
 
-    let current_stage = &state.build_stages[state.current_stage_index];
-    println!(
-      "Started building {} with unit {} (Stage: {})",
-      unit_type.name(),
-      builder_id,
-      current_stage.name
-    );
+      let current_stage = &state.build_stages[state.current_stage_index];
+      println!(
+        "Started building {} with unit {} (Stage: {})",
+        unit_type.name(),
+        builder_id,
+        current_stage.name
+      );
+    }
   }
 }
 
@@ -174,7 +179,7 @@ fn get_next_thing_to_build(game: &Game, player: &Player, state: &GameState) -> O
     .max_by_key(|unit_type| unit_type.mineral_price() + unit_type.gas_price())
 }
 
-fn check_need_more_supply(game: &Game, player: &Player, state: &GameState) -> Option<UnitType> {
+fn check_need_more_supply(_game: &Game, player: &Player, _state: &GameState) -> Option<UnitType> {
   let supply_used = player.supply_used();
   let supply_total = player.supply_total();
 
@@ -189,13 +194,7 @@ fn check_need_more_supply(game: &Game, player: &Player, state: &GameState) -> Op
     let pylon_type = UnitType::Protoss_Pylon;
 
     if can_afford_unit(player, pylon_type) {
-      if let Some(builder) = find_builder_for_unit(player, pylon_type, state) {
-        let build_location =
-          build_location_utils::find_build_location(game, &builder, pylon_type, 25);
-        if build_location.is_some() {
-          return Some(pylon_type);
-        }
-      }
+      return Some(pylon_type);
     }
   }
 
@@ -224,14 +223,16 @@ fn find_builder_for_unit(
 
 fn assign_builder_to_construct(
   game: &Game,
+  player: &Player,
   builder: &rsbwapi::Unit,
   unit_type: UnitType,
   state: &mut GameState,
-) -> bool {
+) -> Option<(bool, Option<rsbwapi::TilePosition>)> {
   let builder_id = builder.get_id();
 
   if unit_type.is_building() {
-    let build_location = build_location_utils::find_build_location(game, builder, unit_type, 25);
+    let build_location =
+      build_location_utils::find_build_location(game, player, builder, unit_type, 42);
 
     if let Some(pos) = build_location {
       println!(
@@ -251,11 +252,11 @@ fn assign_builder_to_construct(
             target_unit: None,
           };
           state.intended_commands.insert(builder_id, intended_cmd);
-          true
+          Some((true, Some(pos)))
         }
         Err(e) => {
           println!("Build command FAILED for {}: {:?}", unit_type.name(), e);
-          false
+          Some((false, None))
         }
       }
     } else {
@@ -264,7 +265,7 @@ fn assign_builder_to_construct(
         unit_type.name(),
         builder.get_id()
       );
-      false
+      Some((false, None))
     }
   } else {
     match builder.train(unit_type) {
@@ -275,11 +276,11 @@ fn assign_builder_to_construct(
           target_unit: None,
         };
         state.intended_commands.insert(builder_id, intended_cmd);
-        true
+        Some((true, None))
       }
       Err(e) => {
         println!("Train command FAILED for {}: {:?}", unit_type.name(), e);
-        false
+        Some((false, None))
       }
     }
   }
@@ -373,6 +374,127 @@ pub fn print_debug_build_status(game: &Game, player: &Player, state: &GameState)
         &format!("{}: {}/{}", unit_type.name(), current_count, desired_count),
       );
       y += 10;
+    }
+  }
+
+  // Draw boxes for pending building assignments
+  let has_pending = state.unit_build_history.iter().any(|entry| {
+    if let Some(unit_id) = entry.assigned_unit_id {
+      state.intended_commands.contains_key(&unit_id)
+    } else {
+      false
+    }
+  });
+
+  for entry in &state.unit_build_history {
+    if let (Some(unit_type), Some(tile_pos), Some(unit_id)) =
+      (entry.unit_type, entry.tile_position, entry.assigned_unit_id)
+    {
+      // Check if the assignment is still active (unit hasn't started building yet)
+      if state.intended_commands.contains_key(&unit_id) {
+        // Convert tile position to pixel position
+        let pixel_x = tile_pos.x * 32;
+        let pixel_y = tile_pos.y * 32;
+
+        // Get building dimensions in pixels
+        let width = unit_type.tile_width() * 32;
+        let height = unit_type.tile_height() * 32;
+
+        // Draw the building outline box
+        use rsbwapi::{Color, Position};
+        let top_left = Position {
+          x: pixel_x,
+          y: pixel_y,
+        };
+        let top_right = Position {
+          x: pixel_x + width,
+          y: pixel_y,
+        };
+        let bottom_left = Position {
+          x: pixel_x,
+          y: pixel_y + height,
+        };
+        let bottom_right = Position {
+          x: pixel_x + width,
+          y: pixel_y + height,
+        };
+
+        // Draw yellow box for pending buildings
+        let color = Color::Yellow;
+        game.draw_line_map(top_left, top_right, color);
+        game.draw_line_map(top_right, bottom_right, color);
+        game.draw_line_map(bottom_right, bottom_left, color);
+        game.draw_line_map(bottom_left, top_left, color);
+
+        // Draw building name at the center
+        let center = Position {
+          x: pixel_x + width / 2,
+          y: pixel_y + height / 2,
+        };
+        game.draw_text_map(center, &format!("Pending: {}", unit_type.name()));
+      }
+    }
+  }
+
+  // Draw buildable locations around nexus if there are pending assignments
+  if has_pending {
+    use rsbwapi::{Color, Position, TilePosition};
+
+    // Find the nexus
+    if let Some(nexus) = player
+      .get_units()
+      .iter()
+      .find(|u| u.get_type() == UnitType::Protoss_Nexus)
+    {
+      let nexus_tile = nexus.get_tile_position();
+      let radius = 30;
+
+      // Iterate through tiles in radius around nexus
+      for dx in -radius..=radius {
+        for dy in -radius..=radius {
+          let tile_x = nexus_tile.x + dx;
+          let tile_y = nexus_tile.y + dy;
+
+          // Check bounds
+          if tile_x < 0 || tile_y < 0 {
+            continue;
+          }
+
+          let tile_pos = TilePosition {
+            x: tile_x,
+            y: tile_y,
+          };
+
+          // Check if within circular radius
+          let dist_sq = (dx * dx + dy * dy) as f32;
+          if dist_sq > (radius * radius) as f32 {
+            continue;
+          }
+
+          // Check buildability
+          let is_buildable = game.is_buildable(tile_pos);
+          if !is_buildable {
+            continue;
+          }
+
+          // Check if powered (check if a 1x1 tile has power)
+          let has_power = game.has_power(tile_pos, (1, 1));
+
+          // Draw small box at tile position
+          let pixel_x = tile_x * 32;
+          let pixel_y = tile_y * 32;
+          let center = Position {
+            x: pixel_x + 16,
+            y: pixel_y + 16,
+          };
+
+          // Green for buildable+powered, Blue for just buildable
+          let color = if has_power { Color::Green } else { Color::Blue };
+
+          // Draw small filled circle/box to indicate buildable location
+          game.draw_circle_map(center, 3, color, true);
+        }
+      }
     }
   }
 }
