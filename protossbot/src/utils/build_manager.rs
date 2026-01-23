@@ -1,4 +1,4 @@
-use rsbwapi::{Game, Order, Player, UnitType};
+use rsbwapi::{Game, Order, Player, Unit, UnitType};
 
 use crate::{
   state::game_state::{BuildHistoryEntry, GameState, IntendedCommand},
@@ -8,6 +8,27 @@ use crate::{
 pub fn on_frame(game: &Game, player: &Player, state: &mut GameState) {
   check_and_advance_stage(player, state);
   try_start_next_build(game, player, state);
+}
+
+pub fn on_building_create(unit: &Unit, state: &mut GameState) {
+  // Find the build history entry associated with this building type
+  // and remove the probe's assignment
+  if let Some(entry) = state
+    .unit_build_history
+    .iter()
+    .rev()
+    .find(|e| e.unit_type == Some(unit.get_type()))
+  {
+    if let Some(probe_id) = entry.assigned_unit_id {
+      // Remove the probe's intended command (PlaceBuilding order)
+      state.intended_commands.remove(&probe_id);
+      println!(
+        "Building {} started. Removed assignment for probe {}",
+        unit.get_type().name(),
+        probe_id
+      );
+    }
+  }
 }
 
 fn try_start_next_build(game: &Game, player: &Player, state: &mut GameState) {
@@ -62,7 +83,8 @@ fn get_next_thing_to_build(game: &Game, player: &Player, state: &GameState) -> O
 
     if unit_type.is_building() {
       let builder = find_builder_for_unit(player, *unit_type)?;
-      let build_location = build_location_utils::find_build_location(game, &builder, *unit_type, 20);
+      let build_location =
+        build_location_utils::find_build_location(game, &builder, *unit_type, 20);
       if build_location.is_none() {
         continue;
       }
@@ -71,28 +93,29 @@ fn get_next_thing_to_build(game: &Game, player: &Player, state: &GameState) -> O
     candidates.push(*unit_type);
   }
 
-  candidates.into_iter().max_by_key(|unit_type| {
-    unit_type.mineral_price() + unit_type.gas_price()
-  })
+  candidates
+    .into_iter()
+    .max_by_key(|unit_type| unit_type.mineral_price() + unit_type.gas_price())
 }
 
 fn check_need_more_supply(game: &Game, player: &Player) -> Option<UnitType> {
   let supply_used = player.supply_used();
   let supply_total = player.supply_total();
-  
+
   if supply_total == 0 {
     return None;
   }
 
   let supply_remaining = supply_total - supply_used;
   let threshold = ((supply_total as f32) * 0.15).ceil() as i32;
-  
+
   if supply_remaining <= threshold && supply_total < 400 {
     let pylon_type = UnitType::Protoss_Pylon;
-    
+
     if can_afford_unit(player, pylon_type) {
       if let Some(builder) = find_builder_for_unit(player, pylon_type) {
-        let build_location = build_location_utils::find_build_location(game, &builder, pylon_type, 20);
+        let build_location =
+          build_location_utils::find_build_location(game, &builder, pylon_type, 20);
         if build_location.is_some() {
           return Some(pylon_type);
         }
@@ -115,9 +138,14 @@ fn find_builder_for_unit(player: &Player, unit_type: UnitType) -> Option<rsbwapi
     .cloned()
 }
 
-fn assign_builder_to_construct(game: &Game, builder: &rsbwapi::Unit, unit_type: UnitType, state: &mut GameState) -> bool {
+fn assign_builder_to_construct(
+  game: &Game,
+  builder: &rsbwapi::Unit,
+  unit_type: UnitType,
+  state: &mut GameState,
+) -> bool {
   let builder_id = builder.get_id();
-  
+
   if unit_type.is_building() {
     let build_location = build_location_utils::find_build_location(game, builder, unit_type, 20);
 
@@ -129,7 +157,7 @@ fn assign_builder_to_construct(game: &Game, builder: &rsbwapi::Unit, unit_type: 
         builder_id,
         builder.get_position()
       );
-      
+
       match builder.build(unit_type, pos) {
         Ok(_) => {
           println!("Build command succeeded for {}", unit_type.name());
@@ -179,8 +207,6 @@ fn count_units_of_type(player: &Player, _state: &GameState, unit_type: UnitType)
     .iter()
     .filter(|u| u.get_type() == unit_type)
     .count() as i32;
-
-
 
   existing
 }

@@ -10,30 +10,9 @@ pub fn assign_idle_workers_to_minerals(game: &Game, player: &Player, state: &mut
     .cloned()
     .collect();
 
-  // First, clean up workers that finished building
-  reassign_finished_builders(game, &workers, state);
-
-  // Then assign idle workers to mining
+  // Assign idle workers to mining
   for worker in workers {
     assign_worker_to_mineral(game, &worker, state);
-  }
-}
-
-fn reassign_finished_builders(_game: &Game, workers: &[Unit], state: &mut GameState) {
-  for worker in workers {
-    let worker_id = worker.get_id();
-    
-    if let Some(cmd) = state.intended_commands.get(&worker_id) {
-      if cmd.order == Order::PlaceBuilding {
-        let current_order = worker.get_order();
-        if worker.is_idle() && current_order != Order::PlaceBuilding && current_order != Order::ConstructingBuilding {
-          println!("Worker {} with order {:?} finished building, reassigning to minerals", worker_id, current_order);
-          state.intended_commands.remove(&worker_id);
-        }
-      } else if cmd.order == Order::Train && worker.is_idle() && !worker.is_training() {
-        state.intended_commands.remove(&worker_id);
-      }
-    }
   }
 }
 

@@ -1,6 +1,9 @@
+use crate::{
+  state::game_state::GameState,
+  utils::{build_manager, worker_management},
+};
 use rsbwapi::*;
 use std::sync::{Arc, Mutex};
-use crate::{state::game_state::GameState, utils::{build_manager, worker_management}};
 
 fn draw_unit_ids(game: &Game) {
   for unit in game.get_all_units() {
@@ -47,6 +50,17 @@ impl AiModule for ProtosBot {
       return;
     }
     println!("unit created: {:?}", unit.get_type());
+
+    // Check if the created unit is a building
+    if !unit.get_type().is_building() {
+      return;
+    }
+
+    let Ok(mut locked_state) = self.game_state.lock() else {
+      return;
+    };
+
+    build_manager::on_building_create(&unit, &mut locked_state);
   }
 
   fn on_unit_morph(&mut self, _game: &Game, _unit: Unit) {}
