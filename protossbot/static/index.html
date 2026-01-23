@@ -13,7 +13,7 @@
 
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
       min-height: 100vh;
       display: flex;
       justify-content: center;
@@ -22,26 +22,20 @@
     }
 
     .container {
-      background: white;
+      background: #1e1e1e;
+      border: 2px solid #d4af37;
       border-radius: 20px;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 20px 60px rgba(212, 175, 55, 0.3);
       padding: 40px;
       max-width: 500px;
       width: 100%;
     }
 
     h1 {
-      color: #333;
-      margin-bottom: 10px;
+      color: #d4af37;
+      margin-bottom: 30px;
       font-size: 28px;
       text-align: center;
-    }
-
-    .subtitle {
-      color: #666;
-      text-align: center;
-      margin-bottom: 30px;
-      font-size: 14px;
     }
 
     .control-group {
@@ -50,7 +44,7 @@
 
     label {
       display: block;
-      color: #555;
+      color: #d4af37;
       font-weight: 600;
       margin-bottom: 10px;
       font-size: 14px;
@@ -64,83 +58,49 @@
     .speed-value {
       font-size: 48px;
       font-weight: bold;
-      color: #667eea;
+      color: #d4af37;
       display: block;
     }
 
     .speed-label {
-      color: #888;
+      color: #999;
       font-size: 12px;
       text-transform: uppercase;
       letter-spacing: 1px;
     }
 
-    input[type="range"] {
-      width: 100%;
-      height: 8px;
-      border-radius: 5px;
-      background: #ddd;
-      outline: none;
-      -webkit-appearance: none;
-      margin-bottom: 20px;
-    }
-
-    input[type="range"]::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      appearance: none;
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
-      background: #667eea;
-      cursor: pointer;
-      box-shadow: 0 2px 6px rgba(102, 126, 234, 0.4);
-      transition: all 0.2s ease;
-    }
-
-    input[type="range"]::-webkit-slider-thumb:hover {
-      transform: scale(1.1);
-      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.6);
-    }
-
-    input[type="range"]::-moz-range-thumb {
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
-      background: #667eea;
-      cursor: pointer;
-      border: none;
-      box-shadow: 0 2px 6px rgba(102, 126, 234, 0.4);
-      transition: all 0.2s ease;
-    }
-
-    input[type="range"]::-moz-range-thumb:hover {
-      transform: scale(1.1);
-      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.6);
-    }
-
     .preset-buttons {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(4, 1fr);
       gap: 10px;
       margin-bottom: 20px;
     }
 
     button {
-      padding: 12px 20px;
-      border: none;
+      padding: 20px 12px;
+      border: 2px solid #d4af37;
       border-radius: 8px;
-      font-size: 14px;
+      font-size: 18px;
       font-weight: 600;
       cursor: pointer;
       transition: all 0.2s ease;
-      background: #f0f0f0;
-      color: #333;
+      background: #2d2d2d;
+      color: #d4af37;
+    }
+
+    button small {
+      display: block;
+      font-size: 11px;
+      font-weight: normal;
+      margin-top: 4px;
+      opacity: 0.7;
     }
 
     button:hover {
-      background: #e0e0e0;
+      background: #d4af37;
+      color: #1e1e1e;
       transform: translateY(-2px);
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 4px 12px rgba(212, 175, 55, 0.4);
     }
 
     button:active {
@@ -162,102 +122,51 @@
     }
 
     .status.success {
-      background: #d4edda;
-      color: #155724;
-      border: 1px solid #c3e6cb;
+      background: rgba(34, 197, 94, 0.2);
+      color: #4ade80;
+      border: 1px solid #22c55e;
     }
 
     .status.error {
-      background: #f8d7da;
-      color: #721c24;
-      border: 1px solid #f5c6cb;
-    }
-
-    .range-labels {
-      display: flex;
-      justify-content: space-between;
-      font-size: 12px;
-      color: #888;
-      margin-top: -15px;
-      margin-bottom: 20px;
-    }
-
-    .info-box {
-      background: #f8f9fa;
-      border-left: 4px solid #667eea;
-      padding: 15px;
-      border-radius: 4px;
-      margin-top: 20px;
-      font-size: 13px;
-      color: #555;
-      line-height: 1.6;
-    }
-
-    .info-box strong {
-      color: #333;
+      background: rgba(239, 68, 68, 0.2);
+      color: #f87171;
+      border: 1px solid #ef4444;
     }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>⚡ Game Speed Control</h1>
-    <p class="subtitle">Protoss Bot Configuration</p>
 
     <div class="speed-display">
-      <span class="speed-value" id="currentSpeed">20</span>
+      <span class="speed-value" id="currentSpeed">42</span>
       <span class="speed-label">Current Speed</span>
     </div>
 
     <div class="control-group">
-      <label for="speedSlider">Adjust Speed</label>
-      <input 
-        type="range" 
-        id="speedSlider" 
-        min="0" 
-        max="100" 
-        value="20"
-        step="1"
-      >
-      <div class="range-labels">
-        <span>0 (Paused)</span>
-        <span>50 (Normal)</span>
-        <span>100 (Fast)</span>
+      <label>Select Speed</label>
+      <div class="preset-buttons">
+        <button onclick="setSpeed(42)">42<br><small>Slowest</small></button>
+        <button onclick="setSpeed(1)">1<br><small>Fast</small></button>
+        <button onclick="setSpeed(0)">0<br><small>Fastest</small></button>
+        <button onclick="setSpeed(-1)">-1<br><small>Max</small></button>
       </div>
     </div>
 
-    <div class="preset-buttons">
-      <button onclick="setSpeed(0)">⏸ Pause</button>
-      <button onclick="setSpeed(20)">🐌 Slow</button>
-      <button onclick="setSpeed(42)">▶️ Normal</button>
-      <button onclick="setSpeed(80)">⚡ Fast</button>
-      <button onclick="setSpeed(100)">🚀 Max</button>
-      <button onclick="setSpeed(1000)">💨 Turbo</button>
-    </div>
-
     <div id="status" class="status"></div>
-
-    <div class="info-box">
-      <strong>Speed Guide:</strong><br>
-      • 0 = Paused<br>
-      • 20 = Slow (good for debugging)<br>
-      • 42 = Normal game speed<br>
-      • 100+ = Fast forward
-    </div>
   </div>
 
   <script>
-    const speedSlider = document.getElementById('speedSlider');
     const currentSpeedDisplay = document.getElementById('currentSpeed');
     const statusDiv = document.getElementById('status');
 
     // Fetch current speed on load
     async function fetchCurrentSpeed() {
       try {
-        const response = await fetch('http://127.0.0.1:3000/api/speed');
+        const response = await fetch('http://127.0.0.1:3333/api/speed');
         if (response.ok) {
           const data = await response.json();
           updateSpeedDisplay(data.speed);
-          speedSlider.value = Math.min(data.speed, 100); // Cap slider at 100
         }
       } catch (error) {
         showStatus('Unable to connect to bot', 'error');
@@ -267,15 +176,12 @@
     // Update speed display
     function updateSpeedDisplay(speed) {
       currentSpeedDisplay.textContent = speed;
-      if (speed <= 100) {
-        speedSlider.value = speed;
-      }
     }
 
     // Set speed via API
     async function setSpeed(speed) {
       try {
-        const response = await fetch('http://127.0.0.1:3000/api/speed', {
+        const response = await fetch('http://127.0.0.1:3333/api/speed', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -303,17 +209,6 @@
         statusDiv.classList.remove('visible');
       }, 3000);
     }
-
-    // Slider change handler
-    speedSlider.addEventListener('input', (e) => {
-      const speed = parseInt(e.target.value);
-      currentSpeedDisplay.textContent = speed;
-    });
-
-    speedSlider.addEventListener('change', (e) => {
-      const speed = parseInt(e.target.value);
-      setSpeed(speed);
-    });
 
     // Fetch current speed on page load
     fetchCurrentSpeed();

@@ -38,10 +38,11 @@ impl AiModule for ProtosBot {
       return;
     };
 
-    // Apply desired game speed
+    // Apply desired game speed from shared state
+    let desired_speed = self.shared_speed.get();
     unsafe {
       let game_ptr = game as *const Game as *mut Game;
-      (*game_ptr).set_local_speed(locked_state.desired_game_speed);
+      (*game_ptr).set_local_speed(desired_speed);
     }
 
     build_manager::on_frame(game, &player, &mut locked_state);
@@ -90,10 +91,11 @@ impl AiModule for ProtosBot {
 
 pub struct ProtosBot {
   game_state: Arc<Mutex<GameState>>,
+  shared_speed: crate::web_server::SharedGameSpeed,
 }
 
 impl ProtosBot {
-  pub fn new(game_state: Arc<Mutex<GameState>>) -> Self {
-    Self { game_state }
+  pub fn new(game_state: Arc<Mutex<GameState>>, shared_speed: crate::web_server::SharedGameSpeed) -> Self {
+    Self { game_state, shared_speed }
   }
 }
