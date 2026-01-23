@@ -9,7 +9,6 @@ pub fn on_frame(game: &Game, player: &Player, state: &mut GameState) {
   cleanup_stale_commands(player, state);
   check_and_advance_stage(player, state);
   state.stage_item_status = get_status_for_stage_items(game, player, state);
-
   try_start_next_build(game, player, state);
 }
 
@@ -21,7 +20,6 @@ pub fn on_building_create(unit: &Unit, state: &mut GameState) {
     .find(|e| e.unit_type == Some(unit.get_type()))
   {
     if let Some(probe_id) = entry.assigned_unit_id {
-      // Remove the probe's intended command (PlaceBuilding order)
       state.intended_commands.remove(&probe_id);
       println!(
         "Building {} started. Removed assignment for probe {}",
@@ -34,41 +32,33 @@ pub fn on_building_create(unit: &Unit, state: &mut GameState) {
 
 fn cleanup_stale_commands(player: &Player, state: &mut GameState) {
   let unit_ids: Vec<usize> = player.get_units().iter().map(|u| u.get_id()).collect();
-
   state.intended_commands.retain(|unit_id, cmd| {
-    // Remove if unit no longer exists
     if !unit_ids.contains(unit_id) {
       return false;
     }
-
-    // Find the unit
     if let Some(unit) = player.get_units().iter().find(|u| u.get_id() == *unit_id) {
-      // For PlaceBuilding orders, check if unit is actually constructing or idle
       if cmd.order == Order::PlaceBuilding {
-        // Keep command only if unit is moving to build location or constructing
         return unit.is_constructing() || unit.get_order() == Order::PlaceBuilding;
       }
-      // For Train orders, check if the building is training
       if cmd.order == Order::Train {
         return unit.is_training();
       }
     }
-
     false
   });
 }
 
 fn try_start_next_build(game: &Game, player: &Player, state: &mut GameState) {
+  if !should_start_next_build(game, player, state) {
+    return;
+  }
   let Some(unit_type) = get_next_thing_to_build(game, player, state) else {
     return;
   };
-
   let Some(builder) = find_builder_for_unit(player, unit_type, state) else {
     return;
   };
-
   let builder_id = builder.get_id();
-
   if let Some((success, tile_pos)) =
     assign_builder_to_construct(game, player, &builder, unit_type, state)
   {
@@ -79,9 +69,7 @@ fn try_start_next_build(game: &Game, player: &Player, state: &mut GameState) {
         assigned_unit_id: Some(builder_id),
         tile_position: tile_pos,
       };
-
       state.unit_build_history.push(entry);
-
       let current_stage = &state.build_stages[state.current_stage_index];
       println!(
         "Started building {} with unit {} (Stage: {})",
@@ -93,21 +81,43 @@ fn try_start_next_build(game: &Game, player: &Player, state: &mut GameState) {
   }
 }
 
+fn should_start_next_build(_game: &Game, _player: &Player, state: &mut GameState) -> bool {
+  !has_pending_assignment(state)
+}
+
+fn has_pending_assignment(state: &GameState) -> bool {
+  state.unit_build_history.iter().any(|entry| {
+    if let Some(unit_id) = entry.assigned_unit_id {
+      state.intended_commands.contains_key(&unit_id)
+    } else {
+      false
+    }
+  })
+}
+
+fn has_ongoing_constructions(state: &GameState, player: &Player) -> bool {
+  state.unit_build_history.iter().any(|entry| {
+    if let Some(unit_id) = entry.assigned_unit_id {
+      if let Some(unit) = player.get_units().iter().find(|u| u.get_id() == unit_id) {
+        return unit.is_constructing() || unit.is_training();
+      }
+    }
+    false
+  })
+}
+
 fn get_status_for_stage_items(
   _game: &Game,
   player: &Player,
   state: &GameState,
 ) -> std::collections::HashMap<String, String> {
   let mut status_map = std::collections::HashMap::new();
-
   let Some(current_stage) = state.build_stages.get(state.current_stage_index) else {
     return status_map;
   };
-
   for (unit_type, &desired_count) in &current_stage.desired_counts {
     let unit_name = unit_type.name().to_string();
     let current_count = count_units_of_type(player, state, *unit_type);
-
     if current_count >= desired_count {
       status_map.insert(
         unit_name,
@@ -115,7 +125,6 @@ fn get_status_for_stage_items(
       );
       continue;
     }
-
     if !can_afford_unit(player, *unit_type) {
       let minerals_short = unit_type.mineral_price() - player.minerals();
       let gas_short = unit_type.gas_price() - player.gas();
@@ -131,7 +140,6 @@ fn get_status_for_stage_items(
       );
       continue;
     }
-
     if unit_type.is_building() {
       if find_builder_for_unit(player, *unit_type, state).is_none() {
         status_map.insert(
@@ -141,39 +149,31 @@ fn get_status_for_stage_items(
         continue;
       }
     }
-
     status_map.insert(
       unit_name,
       format!("Ready to build ({}/{})", current_count, desired_count),
     );
   }
-
   status_map
 }
 
 fn get_next_thing_to_build(game: &Game, player: &Player, state: &GameState) -> Option<UnitType> {
   let current_stage = state.build_stages.get(state.current_stage_index)?;
-
   if let Some(pylon) = check_need_more_supply(game, player, state) {
     return Some(pylon);
   }
-
   let status_map = get_status_for_stage_items(game, player, state);
   let mut candidates = Vec::new();
-
   for (unit_type, &desired_count) in &current_stage.desired_counts {
     let current_count = count_units_of_type(player, state, *unit_type);
-
     if current_count >= desired_count {
       continue;
     }
-
     let status = status_map.get(&unit_type.name().to_string());
     if status.is_some() && status.unwrap().starts_with("Ready to build") {
       candidates.push(*unit_type);
     }
   }
-
   candidates
     .into_iter()
     .max_by_key(|unit_type| unit_type.mineral_price() + unit_type.gas_price())
@@ -182,22 +182,17 @@ fn get_next_thing_to_build(game: &Game, player: &Player, state: &GameState) -> O
 fn check_need_more_supply(_game: &Game, player: &Player, _state: &GameState) -> Option<UnitType> {
   let supply_used = player.supply_used();
   let supply_total = player.supply_total();
-
   if supply_total == 0 {
     return None;
   }
-
   let supply_remaining = supply_total - supply_used;
   let threshold = ((supply_total as f32) * 0.15).ceil() as i32;
-
   if supply_remaining <= threshold && supply_total < 400 {
     let pylon_type = UnitType::Protoss_Pylon;
-
     if can_afford_unit(player, pylon_type) {
       return Some(pylon_type);
     }
   }
-
   None
 }
 
@@ -207,7 +202,6 @@ fn find_builder_for_unit(
   state: &GameState,
 ) -> Option<rsbwapi::Unit> {
   let builder_type = unit_type.what_builds().0;
-
   player
     .get_units()
     .iter()
@@ -229,11 +223,9 @@ fn assign_builder_to_construct(
   state: &mut GameState,
 ) -> Option<(bool, Option<rsbwapi::TilePosition>)> {
   let builder_id = builder.get_id();
-
   if unit_type.is_building() {
     let build_location =
       build_location_utils::find_build_location(game, player, builder, unit_type, 42);
-
     if let Some(pos) = build_location {
       println!(
         "Attempting to build {} at {:?} with worker {} (currently at {:?})",
@@ -242,7 +234,6 @@ fn assign_builder_to_construct(
         builder_id,
         builder.get_position()
       );
-
       match builder.build(unit_type, pos) {
         Ok(_) => {
           println!("Build command succeeded for {}", unit_type.name());
@@ -287,19 +278,16 @@ fn assign_builder_to_construct(
 }
 
 fn count_units_of_type(player: &Player, _state: &GameState, unit_type: UnitType) -> i32 {
-  let existing = player
+  player
     .get_units()
     .iter()
     .filter(|u| u.get_type() == unit_type)
-    .count() as i32;
-
-  existing
+    .count() as i32
 }
 
 fn can_afford_unit(player: &Player, unit_type: UnitType) -> bool {
   let minerals = player.minerals();
   let gas = player.gas();
-
   minerals >= unit_type.mineral_price() && gas >= unit_type.gas_price()
 }
 
@@ -307,7 +295,6 @@ fn check_and_advance_stage(player: &Player, state: &mut GameState) {
   let Some(current_stage) = state.build_stages.get(state.current_stage_index) else {
     return;
   };
-
   let stage_complete = current_stage
     .desired_counts
     .iter()
@@ -315,10 +302,8 @@ fn check_and_advance_stage(player: &Player, state: &mut GameState) {
       let current_count = count_units_of_type(player, state, *unit_type);
       current_count >= desired_count
     });
-
   if stage_complete {
     let next_stage_index = state.current_stage_index + 1;
-
     if next_stage_index < state.build_stages.len() {
       println!(
         "Stage '{}' complete! Advancing to stage {}",
@@ -332,7 +317,6 @@ fn check_and_advance_stage(player: &Player, state: &mut GameState) {
 pub fn print_debug_build_status(game: &Game, player: &Player, state: &GameState) {
   let mut y = 10;
   let x = 3;
-
   if let Some(current_stage) = state.build_stages.get(state.current_stage_index) {
     let next_build = get_next_thing_to_build(game, player, state);
     let next_build_str = if let Some(unit_type) = next_build {
@@ -349,7 +333,6 @@ pub fn print_debug_build_status(game: &Game, player: &Player, state: &GameState)
     };
     game.draw_text_screen((x, y), &next_build_str);
     y += 10;
-
     if let Some(last_entry) = state.unit_build_history.last() {
       let unit_name = if let Some(unit_type) = last_entry.unit_type {
         unit_type.name()
@@ -363,10 +346,8 @@ pub fn print_debug_build_status(game: &Game, player: &Player, state: &GameState)
       game.draw_text_screen((x, y), "Last Built: None");
     }
     y += 10;
-
     game.draw_text_screen((x, y), "Stage Progress:");
     y += 10;
-
     for (unit_type, &desired_count) in &current_stage.desired_counts {
       let current_count = count_units_of_type(player, state, *unit_type);
       game.draw_text_screen(
@@ -376,8 +357,6 @@ pub fn print_debug_build_status(game: &Game, player: &Player, state: &GameState)
       y += 10;
     }
   }
-
-  // Draw boxes for pending building assignments
   let has_pending = state.unit_build_history.iter().any(|entry| {
     if let Some(unit_id) = entry.assigned_unit_id {
       state.intended_commands.contains_key(&unit_id)
@@ -385,22 +364,15 @@ pub fn print_debug_build_status(game: &Game, player: &Player, state: &GameState)
       false
     }
   });
-
   for entry in &state.unit_build_history {
     if let (Some(unit_type), Some(tile_pos), Some(unit_id)) =
       (entry.unit_type, entry.tile_position, entry.assigned_unit_id)
     {
-      // Check if the assignment is still active (unit hasn't started building yet)
       if state.intended_commands.contains_key(&unit_id) {
-        // Convert tile position to pixel position
         let pixel_x = tile_pos.x * 32;
         let pixel_y = tile_pos.y * 32;
-
-        // Get building dimensions in pixels
         let width = unit_type.tile_width() * 32;
         let height = unit_type.tile_height() * 32;
-
-        // Draw the building outline box
         use rsbwapi::{Color, Position};
         let top_left = Position {
           x: pixel_x,
@@ -418,15 +390,11 @@ pub fn print_debug_build_status(game: &Game, player: &Player, state: &GameState)
           x: pixel_x + width,
           y: pixel_y + height,
         };
-
-        // Draw yellow box for pending buildings
         let color = Color::Yellow;
         game.draw_line_map(top_left, top_right, color);
         game.draw_line_map(top_right, bottom_right, color);
         game.draw_line_map(bottom_right, bottom_left, color);
         game.draw_line_map(bottom_left, top_left, color);
-
-        // Draw building name at the center
         let center = Position {
           x: pixel_x + width / 2,
           y: pixel_y + height / 2,
@@ -435,12 +403,8 @@ pub fn print_debug_build_status(game: &Game, player: &Player, state: &GameState)
       }
     }
   }
-
-  // Draw buildable locations around nexus if there are pending assignments
   if has_pending {
     use rsbwapi::{Color, Position, TilePosition};
-
-    // Find the nexus
     if let Some(nexus) = player
       .get_units()
       .iter()
@@ -448,50 +412,33 @@ pub fn print_debug_build_status(game: &Game, player: &Player, state: &GameState)
     {
       let nexus_tile = nexus.get_tile_position();
       let radius = 30;
-
-      // Iterate through tiles in radius around nexus
       for dx in -radius..=radius {
         for dy in -radius..=radius {
           let tile_x = nexus_tile.x + dx;
           let tile_y = nexus_tile.y + dy;
-
-          // Check bounds
           if tile_x < 0 || tile_y < 0 {
             continue;
           }
-
           let tile_pos = TilePosition {
             x: tile_x,
             y: tile_y,
           };
-
-          // Check if within circular radius
           let dist_sq = (dx * dx + dy * dy) as f32;
           if dist_sq > (radius * radius) as f32 {
             continue;
           }
-
-          // Check buildability
           let is_buildable = game.is_buildable(tile_pos);
           if !is_buildable {
             continue;
           }
-
-          // Check if powered (check if a 1x1 tile has power)
           let has_power = game.has_power(tile_pos, (1, 1));
-
-          // Draw small box at tile position
           let pixel_x = tile_x * 32;
           let pixel_y = tile_y * 32;
           let center = Position {
             x: pixel_x + 16,
             y: pixel_y + 16,
           };
-
-          // Green for buildable+powered, Blue for just buildable
           let color = if has_power { Color::Green } else { Color::Blue };
-
-          // Draw small filled circle/box to indicate buildable location
           game.draw_circle_map(center, 3, color, true);
         }
       }
