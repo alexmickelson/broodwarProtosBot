@@ -16,10 +16,10 @@ pub fn assign_idle_workers_to_minerals(game: &Game, player: &Player, state: &mut
   // Assign idle workers that are not already assigned in the build history
   for worker in workers {
     // Skip if this worker is already recorded as assigned in any ongoing build history entry
-    let already_assigned = state
-      .unit_build_history
-      .iter()
-      .any(|entry| entry.assigned_unit_id == Some(worker.get_id()));
+    let already_assigned = state.unit_build_history.iter().any(|entry| {
+      entry.assigned_unit_id == Some(worker.get_id())
+        && entry.unit_type.map(|ut| ut.is_building()).unwrap_or(false)
+    });
     if already_assigned {
       continue;
     }
@@ -51,11 +51,7 @@ fn assign_worker_to_mineral(game: &Game, worker: &Unit, state: &mut GameState) {
 
   // Assign worker to gather minerals (ignore intended command tracking).
   if worker.gather(&mineral).is_ok() {
-    println!(
-      "Assigned worker {} to mine from mineral at {:?}",
-      worker_id,
-      mineral.get_position()
-    );
+    println!("Assigned worker {} to mine from mineral", worker_id,);
   }
 }
 

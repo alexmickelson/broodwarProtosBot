@@ -12,8 +12,17 @@ pub fn on_frame(game: &Game, player: &Player, state: &mut GameState) {
   try_start_next_build(game, player, state);
 }
 
-pub fn on_building_create(_unit: &Unit, _state: &mut GameState) {
-  // No intended command tracking needed.
+pub fn on_building_create(unit: &Unit, state: &mut GameState) {
+  // When a building is created, remove the corresponding build history entry so the next
+  // build can be started without waiting for the current one to finish.
+  if let Some(pos) = state.unit_build_history.iter().position(|entry| {
+    entry
+      .unit_type
+      .map(|ut| ut == unit.get_type())
+      .unwrap_or(false)
+  }) {
+    state.unit_build_history.remove(pos);
+  }
 }
 
 /// Called when a non‑building unit (e.g., a trained unit) is created.
@@ -49,15 +58,39 @@ fn try_start_next_build(game: &Game, player: &Player, state: &mut GameState) {
 }
 
 fn should_start_next_build(_game: &Game, player: &Player, state: &mut GameState) -> bool {
-  // Only start a new build if there are no ongoing constructions or training actions.
-  !has_ongoing_constructions(state, player)
+  // Do not start a new build if there is a pending build (assigned but not yet constructing/training).
+  if pending_build_exists(state, player) {
+    return false;
+  }
+  // Ensure there is a builder available for the next thing to build.
+  if let Some(unit_type) = get_next_thing_to_build(_game, player, state) {
+    find_builder_for_unit(player, unit_type, state).is_some()
+  } else {
+    false
+  }
 }
 
 fn has_ongoing_constructions(state: &GameState, player: &Player) -> bool {
+  // Consider a construction ongoing if there is a build history entry with an assigned unit that
+  // is currently constructing or training. This covers the period after a build command is issued
+  // but before the unit starts the actual constructing state, preventing multiple workers from
+  // being assigned to the same build command.
   state.unit_build_history.iter().any(|entry| {
     if let Some(unit_id) = entry.assigned_unit_id {
       if let Some(unit) = player.get_units().iter().find(|u| u.get_id() == unit_id) {
         return unit.is_constructing() || unit.is_training();
+      }
+    }
+    false
+  })
+}
+
+// Returns true if there is a build history entry with an assigned builder that has not yet started constructing or training.
+fn pending_build_exists(state: &GameState, player: &Player) -> bool {
+  state.unit_build_history.iter().any(|entry| {
+    if let Some(unit_id) = entry.assigned_unit_id {
+      if let Some(unit) = player.get_units().iter().find(|u| u.get_id() == unit_id) {
+        return !(unit.is_constructing() || unit.is_training());
       }
     }
     false
@@ -185,11 +218,10 @@ fn assign_builder_to_construct(
       build_location_utils::find_build_location(game, player, builder, unit_type, 42);
     if let Some(pos) = build_location {
       println!(
-        "Attempting to build {} at {:?} with worker {} (currently at {:?})",
+        "Attempting to build {} at {:?} with worker {}",
         unit_type.name(),
         pos,
         builder_id,
-        builder.get_position()
       );
       match builder.build(unit_type, pos) {
         Ok(_) => {
