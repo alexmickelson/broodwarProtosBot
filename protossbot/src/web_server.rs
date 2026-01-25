@@ -10,6 +10,8 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tower_http::{cors::CorsLayer, services::ServeDir};
 
+use crate::state::game_state::{self, BuildHistoryEntry, BuildStatus};
+
 #[derive(Clone)]
 pub struct SharedGameSpeed {
   speed: Arc<Mutex<i32>>,
@@ -71,6 +73,7 @@ impl SharedBuildStatus {
 struct AppState {
   game_speed: SharedGameSpeed,
   build_status: SharedBuildStatus,
+  game_state: Arc<Mutex<game_state::GameState>>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -94,6 +97,13 @@ pub struct BuildStatusResponse {
 pub struct BuildItemStatusInfo {
   pub unit_name: String,
   pub status: String,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct BuildHistoryInfo {
+  pub unit_name: Option<String>,
+  pub status: String,
+  pub assigned_unit_id: Option<usize>,
 }
 
 async fn get_game_speed(State(app_state): State<AppState>) -> Response {
@@ -145,7 +155,40 @@ async fn get_build_status(State(app_state): State<AppState>) -> Response {
   (StatusCode::OK, Json(response)).into_response()
 }
 
-pub async fn start_web_server(shared_speed: SharedGameSpeed, build_status: SharedBuildStatus) {
+async fn get_build_history(State(app_state): State<AppState>) -> Response {
+  let state_guard = match app_state.game_state.lock() {
+    Ok(g) => g,
+    Err(_) => {
+      return (
+        StatusCode::INTERNAL_SERVER_ERROR,
+        Json("Failed to lock game state"),
+      )
+        .into_response();
+    }
+  };
+
+  let history: Vec<BuildHistoryInfo> = state_guard
+    .unit_build_history
+    .iter()
+    .filter(|entry| entry.status == BuildStatus::Assigned)
+    .map(|entry| BuildHistoryInfo {
+      unit_name: entry.unit_type.map(|ut| ut.name().to_string()),
+      status: match entry.status {
+        BuildStatus::Assigned => "Assigned".to_string(),
+        BuildStatus::Started => "Started".to_string(),
+      },
+      assigned_unit_id: entry.assigned_unit_id,
+    })
+    .collect();
+
+  (StatusCode::OK, Json(history)).into_response()
+}
+
+pub async fn start_web_server(
+  shared_speed: SharedGameSpeed,
+  build_status: SharedBuildStatus,
+  game_state: Arc<Mutex<game_state::GameState>>,
+) {
   let static_dir = std::env::current_dir().unwrap().join("static");
 
   let cors = CorsLayer::very_permissive();
@@ -153,6 +196,7 @@ pub async fn start_web_server(shared_speed: SharedGameSpeed, build_status: Share
   let app_state = AppState {
     game_speed: shared_speed,
     build_status,
+    game_state,
   };
 
   let app = Router::new()

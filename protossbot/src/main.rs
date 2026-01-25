@@ -23,6 +23,7 @@ fn main() {
     runtime.block_on(web_server::start_web_server(
       shared_speed_clone,
       build_status_clone,
+      game_state.clone(),
     ));
   });
 

@@ -14,15 +14,19 @@ pub fn on_frame(game: &Game, player: &Player, state: &mut GameState) {
 }
 
 pub fn on_building_create(unit: &Unit, state: &mut GameState) {
-  // When a building is created, remove the corresponding build history entry so the next
-  // build can be started without waiting for the current one to finish.
+  // When a building is created, update the corresponding build history entry so the next
+  // build can be started without waiting for the current one to finish. Mark it as
+  // Started and clear the assigned unit id (the builder is now a building).
   if let Some(pos) = state.unit_build_history.iter().position(|entry| {
     entry
       .unit_type
       .map(|ut| ut == unit.get_type())
       .unwrap_or(false)
   }) {
-    state.unit_build_history.remove(pos);
+    if let Some(entry) = state.unit_build_history.get_mut(pos) {
+      entry.status = BuildStatus::Started;
+      entry.assigned_unit_id = None;
+    }
   }
 }
 
