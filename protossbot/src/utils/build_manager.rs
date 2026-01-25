@@ -1,12 +1,13 @@
+use std::collections::HashMap;
+
 use rsbwapi::{Game, Player, Unit, UnitType};
 
 use crate::{
-  state::game_state::{BuildHistoryEntry, GameState},
+  state::game_state::{BuildHistoryEntry, BuildStatus, GameState},
   utils::build_location_utils,
 };
 
 pub fn on_frame(game: &Game, player: &Player, state: &mut GameState) {
-  // No intended command tracking; directly manage builds and stages.
   check_and_advance_stage(player, state);
   state.stage_item_status = get_status_for_stage_items(game, player, state);
   try_start_next_build(game, player, state);
@@ -25,11 +26,7 @@ pub fn on_building_create(unit: &Unit, state: &mut GameState) {
   }
 }
 
-/// Called when a non‑building unit (e.g., a trained unit) is created.
-/// This clears any pending assignment for the building that trained it.
-pub fn on_unit_create(_unit: &Unit, _state: &mut GameState) {
-  // No intended command tracking needed for unit creation.
-}
+pub fn on_unit_create(_unit: &Unit, _state: &mut GameState) {}
 
 fn try_start_next_build(game: &Game, player: &Player, state: &mut GameState) {
   if !should_start_next_build(game, player, state) {
@@ -38,71 +35,120 @@ fn try_start_next_build(game: &Game, player: &Player, state: &mut GameState) {
   let Some(unit_type) = get_next_thing_to_build(game, player, state) else {
     return;
   };
+
+  if unit_type.is_building() {
+    start_building_construction(game, player, state, unit_type);
+  } else {
+    start_unit_training(game, player, state, unit_type);
+  }
+}
+
+fn start_building_construction(
+  game: &Game,
+  player: &Player,
+  state: &mut GameState,
+  unit_type: UnitType,
+) {
   let Some(builder) = find_builder_for_unit(player, unit_type, state) else {
+    println!("No builder available to train {}", unit_type.name());
     return;
   };
   let builder_id = builder.get_id();
-  if let Some((success, tile_pos)) =
-    assign_builder_to_construct(game, player, &builder, unit_type, state)
-  {
-    if success {
-      let entry = BuildHistoryEntry {
-        unit_type: Some(unit_type),
-        upgrade_type: None,
-        assigned_unit_id: Some(builder_id),
-        tile_position: tile_pos,
-      };
-      state.unit_build_history.push(entry);
+
+  let Some(building_location) =
+    build_location_utils::find_build_location(game, player, &builder, unit_type, 42)
+  else {
+    state.unit_build_history.push(BuildHistoryEntry {
+      unit_type: Some(unit_type),
+      upgrade_type: None,
+      assigned_unit_id: Some(builder_id),
+      tile_position: None,
+      status: BuildStatus::Assigned,
+    });
+    return;
+  };
+  state.unit_build_history.push(BuildHistoryEntry {
+    unit_type: Some(unit_type),
+    upgrade_type: None,
+    assigned_unit_id: Some(builder_id),
+    tile_position: Some(building_location),
+    status: BuildStatus::Assigned,
+  });
+
+  match builder.build(unit_type, building_location) {
+    Ok(true) => {}
+    Ok(false) => {
+      println!(
+        "Build command failed for {} by builder {}",
+        unit_type.name(),
+        builder_id
+      );
+    }
+    Err(e) => {
+      println!(
+        "Build command FAILED for {} by builder {}: {:?}",
+        unit_type.name(),
+        builder_id,
+        e
+      );
     }
   }
 }
 
-fn should_start_next_build(_game: &Game, player: &Player, state: &mut GameState) -> bool {
-  // Do not start a new build if there is a pending build (assigned but not yet constructing/training).
-  if pending_build_exists(state, player) {
+fn start_unit_training(_game: &Game, player: &Player, state: &mut GameState, unit_type: UnitType) {
+  let Some(trainer) = find_builder_for_unit(player, unit_type, state) else {
+    return;
+  };
+  let trainer_id = trainer.get_id();
+  let entry = BuildHistoryEntry {
+    unit_type: Some(unit_type),
+    upgrade_type: None,
+    assigned_unit_id: Some(trainer_id),
+    tile_position: None,
+    status: match trainer.train(unit_type) {
+      Ok(true) => BuildStatus::Started,
+      Ok(false) => {
+        println!(
+          "Train command failed for {} by trainer {}",
+          unit_type.name(),
+          trainer_id
+        );
+        BuildStatus::Assigned
+      }
+      Err(e) => {
+        println!(
+          "Train command FAILED for {} by trainer {}: {:?}",
+          unit_type.name(),
+          trainer_id,
+          e
+        );
+        BuildStatus::Assigned
+      }
+    },
+  };
+
+  state.unit_build_history.push(entry);
+}
+
+fn should_start_next_build(game: &Game, player: &Player, state: &mut GameState) -> bool {
+  if state
+    .unit_build_history
+    .iter()
+    .any(|entry| entry.status == BuildStatus::Assigned)
+  {
     return false;
   }
-  // Ensure there is a builder available for the next thing to build.
-  if let Some(unit_type) = get_next_thing_to_build(_game, player, state) {
-    find_builder_for_unit(player, unit_type, state).is_some()
-  } else {
-    false
-  }
+
+  true
 }
 
-fn has_ongoing_constructions(state: &GameState, player: &Player) -> bool {
-  // Consider a construction ongoing if there is a build history entry with an assigned unit that
-  // is currently constructing or training. This covers the period after a build command is issued
-  // but before the unit starts the actual constructing state, preventing multiple workers from
-  // being assigned to the same build command.
-  state.unit_build_history.iter().any(|entry| {
-    if let Some(unit_id) = entry.assigned_unit_id {
-      if let Some(unit) = player.get_units().iter().find(|u| u.get_id() == unit_id) {
-        return unit.is_constructing() || unit.is_training();
-      }
-    }
-    false
-  })
-}
-
-// Returns true if there is a build history entry with an assigned builder that has not yet started constructing or training.
-fn pending_build_exists(state: &GameState, player: &Player) -> bool {
-  state.unit_build_history.iter().any(|entry| {
-    if let Some(unit_id) = entry.assigned_unit_id {
-      if let Some(unit) = player.get_units().iter().find(|u| u.get_id() == unit_id) {
-        return !(unit.is_constructing() || unit.is_training());
-      }
-    }
-    false
-  })
-}
 
 fn get_status_for_stage_items(
   _game: &Game,
   player: &Player,
   state: &GameState,
-) -> std::collections::HashMap<String, String> {
-  let mut status_map = std::collections::HashMap::new();
+) -> HashMap<String, String> {
+  let mut status_map = HashMap::new();
   let Some(current_stage) = state.build_stages.get(state.current_stage_index) else {
     return status_map;
   };
