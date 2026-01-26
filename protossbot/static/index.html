@@ -198,6 +198,12 @@
         color: #999;
         font-size: 13px;
       }
+      .build-item.no-history-msg {
+        color: #aaa !important;
+        background: #232323 !important;
+        border-left-color: #444 !important;
+        font-style: italic;
+      }
     </style>
   </head>
   <body>
@@ -380,7 +386,7 @@
       function updateBuildHistory(items) {
         if (!items || items.length === 0) {
           buildHistoryItemsEl.innerHTML =
-            '<li class="build-item">No build history items</li>';
+            '<li class="build-item no-history-msg">No build history items</li>';
           return;
         }
         buildHistoryItemsEl.innerHTML = items

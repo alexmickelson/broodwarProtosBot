@@ -42,7 +42,11 @@ pub fn get_build_stages() -> Vec<BuildStage> {
       .with_unit(UnitType::Terran_Supply_Depot, 3)
       .with_unit(UnitType::Terran_Command_Center, 2)
       .with_unit(UnitType::Terran_Barracks, 2)
-      .with_unit(UnitType::Terran_Missile_Turret, 2)
       .with_unit(UnitType::Terran_Marine, 4),
+    
+    BuildStage::new("Spam Units")
+      .with_unit(UnitType::Terran_Missile_Turret, 2)
+      .with_unit(UnitType::Terran_Marine, 100)
+      .with_unit(UnitType::Terran_Barracks, 5)
   ]
 }

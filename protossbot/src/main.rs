@@ -1,7 +1,13 @@
 mod bot;
 mod state;
-mod utils;
 mod web_server;
+mod utils {
+  pub mod build_buildings_utils;
+  pub mod build_location_utils;
+  pub mod build_manager;
+  pub mod worker_management;
+  pub mod debug_utils;
+}
 
 use bot::ProtosBot;
 use state::game_state::GameState;
@@ -21,7 +27,7 @@ fn main() {
   let game_state_for_thread = game_state.clone();
   std::thread::spawn(move || {
     let runtime = tokio::runtime::Runtime::new().unwrap();
-runtime.block_on(web_server::start_web_server(
+    runtime.block_on(web_server::start_web_server(
       shared_speed_clone,
       build_status_clone,
       game_state_for_thread,

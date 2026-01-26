@@ -1,6 +1,6 @@
 use crate::{
   state::game_state::GameState,
-  utils::{build_manager, worker_management},
+  utils::{build_location_utils, build_manager, debug_utils, worker_management},
 };
 use rsbwapi::*;
 use std::sync::{Arc, Mutex};
@@ -24,6 +24,15 @@ impl AiModule for ProtosBot {
       let game_ptr = game as *const Game as *mut Game;
       (*game_ptr).enable_flag(Flag::UserInput as i32);
     }
+
+    let Some(mut locked_state) = self.game_state.lock().ok() else {
+      return;
+    };
+    let Some(player) = game.self_() else {
+      return;
+    };
+
+    locked_state.base_locations = build_location_utils::get_base_locations(game, &player);
 
     println!("Game started on map: {}", game.map_file_name());
   }
@@ -60,7 +69,7 @@ impl AiModule for ProtosBot {
       locked_state.stage_item_status.clone(),
     );
 
-    build_manager::print_debug_build_status(game, &player, &locked_state);
+    debug_utils::print_debug_build_status(game, &player, &locked_state);
     draw_unit_ids(game);
   }
 

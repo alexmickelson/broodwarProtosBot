@@ -1,4 +1,4 @@
-use rsbwapi::{UnitType, UpgradeType};
+use rsbwapi::{*};
 use std::collections::HashMap;
 
 use crate::state::build_stages::BuildStage;
@@ -8,6 +8,7 @@ pub struct GameState {
   pub build_stages: Vec<BuildStage>,
   pub current_stage_index: usize,
   pub stage_item_status: HashMap<String, String>,
+  pub base_locations: Vec<TilePosition>,
 }
 
 impl Default for GameState {
@@ -17,6 +18,7 @@ impl Default for GameState {
       build_stages: crate::state::build_stages::get_build_stages(),
       current_stage_index: 0,
       stage_item_status: HashMap::new(),
+      base_locations: Vec::new(),
     }
   }
 }

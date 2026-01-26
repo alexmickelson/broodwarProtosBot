@@ -1,129 +1,19 @@
 use std::collections::HashMap;
 
-use rsbwapi::{Game, Order, Player, Unit, UnitType};
+use rsbwapi::{Color, Game, Player, UnitType};
 
 use crate::{
   state::game_state::{BuildHistoryEntry, BuildStatus, GameState},
-  utils::build_location_utils,
+  utils::build_buildings_utils,
 };
 
 pub fn on_frame(game: &Game, player: &Player, state: &mut GameState) {
-  check_if_building_started(game, player, state);
+  build_buildings_utils::check_if_building_started(game, player, state);
   check_and_advance_stage(player, state);
   state.stage_item_status = get_status_for_stage_items(game, player, state);
 
-  try_restart_failed_builds(game, player, state);
+  build_buildings_utils::try_restart_failed_builing_builds(game, player, state);
   try_start_next_build(game, player, state);
-}
-
-fn check_if_building_started(game: &Game, player: &Player, state: &mut GameState) {
-  let started_history_items = state
-    .unit_build_history
-    .iter_mut()
-    .filter(|entry| entry.status == BuildStatus::Assigned)
-    .collect::<Vec<&mut BuildHistoryEntry>>();
-
-  let buildings_under_construction: Vec<Unit> = player
-    .get_units()
-    .iter()
-    .filter(|u| u.is_constructing())
-    .cloned()
-    .collect();
-
-  for entry in started_history_items {
-    let Some(unit_type) = entry.unit_type else {
-      continue;
-    };
-    let Some(builder_id) = entry.assigned_unit_id else {
-      continue;
-    };
-    let Some(builder) = game.get_unit(builder_id) else {
-      continue;
-    };
-
-    let builder_order = builder.get_order();
-
-    let building_type_is_under_construction = buildings_under_construction
-      .iter()
-      .any(|b| b.get_type() == unit_type);
-
-    // println!(
-    //   "Builder {} assigned to build {:?}, under construction: {:?}, order: {:?}",
-    //   builder_id, unit_type, building_type_is_under_construction, builder_order
-    // );
-    if builder_order == Order::ConstructingBuilding && building_type_is_under_construction {
-      println!(
-        "Builder {} has started constructing {:?}",
-        builder_id, unit_type
-      );
-      entry.status = BuildStatus::Started;
-    }
-  }
-}
-
-fn try_restart_failed_builds(game: &Game, player: &Player, state: &mut GameState) {
-  for entry in state.unit_build_history.iter_mut() {
-    if entry.status != BuildStatus::Assigned {
-      continue;
-    }
-    let Some(unit_type) = entry.unit_type else {
-      continue;
-    };
-    let Some(builder_id) = entry.assigned_unit_id else {
-      continue;
-    };
-    let Some(builder) = game.get_unit(builder_id) else {
-      continue;
-    };
-
-    if !matches!(
-      builder.get_order(),
-      Order::ConstructingBuilding | Order::PlaceBuilding | Order::ResetCollision
-    ) {
-      println!(
-        "Builder {} is not constructing (order: {:?}) for assigned build of {}",
-        builder_id,
-        builder.get_order(),
-        unit_type.name()
-      );
-      let Some(new_location) =
-        build_location_utils::find_build_location(game, player, &builder, unit_type, 42)
-      else {
-        println!(
-          "Cannot build {}: no valid location found for builder {}",
-          unit_type.name(),
-          builder_id
-        );
-        continue;
-      };
-
-      match builder.build(unit_type, new_location) {
-        Ok(true) => {
-          println!(
-            "Restarted building {} by builder {}",
-            unit_type.name(),
-            builder_id
-          );
-          entry.tile_position = Some(new_location);
-        }
-        Ok(false) => {
-          println!(
-            "Restart build order failed for {} by builder {}",
-            unit_type.name(),
-            builder_id
-          );
-        }
-        Err(e) => {
-          println!(
-            "Restart build order FAILED for {} by builder {}: {:?}",
-            unit_type.name(),
-            builder_id,
-            e
-          );
-        }
-      }
-    }
-  }
 }
 
 fn try_start_next_build(game: &Game, player: &Player, state: &mut GameState) {
@@ -135,67 +25,9 @@ fn try_start_next_build(game: &Game, player: &Player, state: &mut GameState) {
   };
 
   if unit_type.is_building() {
-    start_building_construction(game, player, state, unit_type);
+    build_buildings_utils::start_building_construction(game, player, state, unit_type);
   } else {
     start_unit_training(game, player, state, unit_type);
-  }
-}
-
-fn start_building_construction(
-  game: &Game,
-  player: &Player,
-  state: &mut GameState,
-  unit_type: UnitType,
-) {
-  let Some(builder) = find_builder_for_unit(player, unit_type, state) else {
-    println!("No builder available to train {:?}", unit_type);
-    return;
-  };
-  let builder_id = builder.get_id();
-
-  let Some(building_location) =
-    build_location_utils::find_build_location(game, player, &builder, unit_type, 42)
-  else {
-    state.unit_build_history.push(BuildHistoryEntry {
-      unit_type: Some(unit_type),
-      upgrade_type: None,
-      assigned_unit_id: Some(builder_id),
-      tile_position: None,
-      status: BuildStatus::Assigned,
-    });
-    return;
-  };
-  state.unit_build_history.push(BuildHistoryEntry {
-    unit_type: Some(unit_type),
-    upgrade_type: None,
-    assigned_unit_id: Some(builder_id),
-    tile_position: Some(building_location),
-    status: BuildStatus::Assigned,
-  });
-
-  match builder.build(unit_type, building_location) {
-    Ok(true) => {
-      println!(
-        "Started building {} by builder {}",
-        unit_type.name(),
-        builder_id
-      );
-    }
-    Ok(false) => {
-      println!(
-        "Build order failed for {} by builder {}",
-        unit_type.name(),
-        builder_id
-      );
-    }
-    Err(e) => {
-      println!(
-        "Build order FAILED for {} by builder {}: {:?}",
-        unit_type.name(),
-        builder_id,
-        e
-      );
-    }
   }
 }
 
@@ -297,7 +129,7 @@ fn get_status_for_stage_items(
   status_map
 }
 
-fn get_next_thing_to_build(game: &Game, player: &Player, state: &GameState) -> Option<UnitType> {
+pub fn get_next_thing_to_build(game: &Game, player: &Player, state: &GameState) -> Option<UnitType> {
   let current_stage = state.build_stages.get(state.current_stage_index)?;
   if let Some(pylon) = check_need_more_supply(game, player, state) {
     return Some(pylon);
@@ -387,51 +219,6 @@ fn check_and_advance_stage(player: &Player, state: &mut GameState) {
         current_stage.name, state.build_stages[next_stage_index].name
       );
       state.current_stage_index = next_stage_index;
-    }
-  }
-}
-
-pub fn print_debug_build_status(game: &Game, player: &Player, state: &GameState) {
-  let mut y = 10;
-  let x = 3;
-  if let Some(current_stage) = state.build_stages.get(state.current_stage_index) {
-    let next_build = get_next_thing_to_build(game, player, state);
-    let next_build_str = if let Some(unit_type) = next_build {
-      format!(
-        "Next: {} ({}/{} M, {}/{} G)",
-        unit_type.name(),
-        player.minerals(),
-        unit_type.mineral_price(),
-        player.gas(),
-        unit_type.gas_price()
-      )
-    } else {
-      "Next: None".to_string()
-    };
-    game.draw_text_screen((x, y), &next_build_str);
-    y += 10;
-    if let Some(last_entry) = state.unit_build_history.last() {
-      let unit_name = if let Some(unit_type) = last_entry.unit_type {
-        unit_type.name()
-      } else if let Some(_upgrade) = last_entry.upgrade_type {
-        "Upgrade"
-      } else {
-        "Unknown"
-      };
-      game.draw_text_screen((x, y), &format!("Last Built: {}", unit_name));
-    } else {
-      game.draw_text_screen((x, y), "Last Built: None");
-    }
-    y += 10;
-    game.draw_text_screen((x, y), "Stage Progress:");
-    y += 10;
-    for (unit_type, &desired_count) in &current_stage.desired_counts {
-      let current_count = count_units_of_type(player, state, *unit_type);
-      game.draw_text_screen(
-        (x + 10, y),
-        &format!("{}: {}/{}", unit_type.name(), current_count, desired_count),
-      );
-      y += 10;
     }
   }
 }
