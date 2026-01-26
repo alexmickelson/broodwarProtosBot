@@ -202,8 +202,6 @@
   </head>
   <body>
     <div class="container">
-
-
       <div class="control-group">
         <div class="preset-buttons">
           <button data-speed="42" onclick="setSpeed(42)">
@@ -231,55 +229,63 @@
           </ul>
         </div>
       </div>
+
+      <div class="build-history-section">
+        <div class="stage-info">
+          <div class="stage-name">Build History</div>
+          <ul class="build-items" id="buildHistoryItems">
+            <li class="build-item">Loading build history...</li>
+          </ul>
+        </div>
+      </div>
     </div>
 
     <script id="game-speed-script">
-        const presetButtons = document.querySelectorAll('.preset-buttons button');
-        const statusDiv = document.getElementById('status');
+      const presetButtons = document.querySelectorAll(".preset-buttons button");
+      const statusDiv = document.getElementById("status");
 
-        function highlightButton(speed) {
-          presetButtons.forEach(btn => {
-            if (Number(btn.dataset.speed) === speed) {
-              btn.classList.add('active');
-            } else {
-              btn.classList.remove('active');
-            }
-          });
-        }
-
-        async function fetchCurrentSpeed() {
-          const response = await fetch('http://127.0.0.1:3333/api/speed');
-          if (response.ok) {
-            const data = await response.json();
-            highlightButton(data.speed);
-            // Clear any previous error message
-            statusDiv.textContent = '';
-            statusDiv.className = 'status';
+      function highlightButton(speed) {
+        presetButtons.forEach((btn) => {
+          if (Number(btn.dataset.speed) === speed) {
+            btn.classList.add("active");
           } else {
-            showStatus('Unable to connect to bot', 'error');
+            btn.classList.remove("active");
           }
+        });
+      }
+
+      async function fetchCurrentSpeed() {
+        const response = await fetch("http://127.0.0.1:3333/api/speed");
+        if (response.ok) {
+          const data = await response.json();
+          highlightButton(data.speed);
+          // Clear any previous error message
+          statusDiv.textContent = "";
+          statusDiv.className = "status";
+        } else {
+          showStatus("Unable to connect to bot", "error");
         }
+      }
 
-        async function setSpeed(speed) {
-            const response = await fetch('http://127.0.0.1:3333/api/speed', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({ speed: speed }),
-            });
+      async function setSpeed(speed) {
+        const response = await fetch("http://127.0.0.1:3333/api/speed", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ speed: speed }),
+        });
 
-            if (response.ok) {
-              const data = await response.json();
-              highlightButton(data.speed);
-              // Clear any previous status message on success
-              statusDiv.textContent = '';
-              statusDiv.className = 'status';
-            } else {
-              showStatus('Failed to update speed', 'error');
-            }
+        if (response.ok) {
+          const data = await response.json();
+          highlightButton(data.speed);
+          // Clear any previous status message on success
+          statusDiv.textContent = "";
+          statusDiv.className = "status";
+        } else {
+          showStatus("Failed to update speed", "error");
         }
-
+      }
 
       function showStatus(message, type) {
         statusDiv.textContent = message;
@@ -348,6 +354,62 @@
 
       fetchBuildStatus();
       setInterval(fetchBuildStatus, 1000);
+    </script>
+
+    <script id="build-history-script">
+      const buildHistoryItemsEl = document.getElementById("buildHistoryItems");
+
+      async function fetchBuildHistory() {
+        try {
+          const response = await fetch(
+            "http://127.0.0.1:3333/api/build-history",
+          );
+          if (response.ok) {
+            const data = await response.json();
+            updateBuildHistory(data);
+          } else {
+            buildHistoryItemsEl.innerHTML =
+              '<li class="build-item">Failed to load build history</li>';
+          }
+        } catch (error) {
+          buildHistoryItemsEl.innerHTML =
+            '<li class="build-item">Error loading build history</li>';
+        }
+      }
+
+      function updateBuildHistory(items) {
+        if (!items || items.length === 0) {
+          buildHistoryItemsEl.innerHTML =
+            '<li class="build-item">No build history items</li>';
+          return;
+        }
+        buildHistoryItemsEl.innerHTML = items
+          .map(function (item) {
+            var unitName = item.unit_name ? item.unit_name : "Unknown";
+            var unitId =
+              item.assigned_unit_id !== undefined &&
+              item.assigned_unit_id !== null
+                ? item.assigned_unit_id
+                : "N/A";
+            return (
+              '<li class="build-item">' +
+              '<span class="unit-name">' +
+              unitName +
+              "</span>" +
+              '<span class="unit-status">' +
+              item.status +
+              "</span>" +
+              '<span class="unit-status">ID: ' +
+              unitId +
+              "</span>" +
+              "</li>"
+            );
+          })
+          .join("");
+      }
+
+      fetchBuildHistory();
+      setInterval(fetchBuildHistory, 2000);
     </script>
   </body>
 </html>

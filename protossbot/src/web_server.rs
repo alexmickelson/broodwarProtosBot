@@ -203,6 +203,7 @@ pub async fn start_web_server(
     .route("/api/speed", get(get_game_speed))
     .route("/api/speed", post(set_game_speed))
     .route("/api/build-status", get(get_build_status))
+    .route("/api/build-history", get(get_build_history))
     .layer(cors)
     .fallback_service(ServeDir::new(static_dir))
     .with_state(app_state);

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use rsbwapi::{Game, Player, Unit, UnitType};
+use rsbwapi::{Game, Order, Player, Unit, UnitType};
 
 use crate::{
   state::game_state::{BuildHistoryEntry, BuildStatus, GameState},
@@ -8,29 +8,123 @@ use crate::{
 };
 
 pub fn on_frame(game: &Game, player: &Player, state: &mut GameState) {
+  check_if_building_started(game, player, state);
   check_and_advance_stage(player, state);
   state.stage_item_status = get_status_for_stage_items(game, player, state);
+
+  try_restart_failed_builds(game, player, state);
   try_start_next_build(game, player, state);
 }
 
-pub fn on_building_create(unit: &Unit, state: &mut GameState) {
-  // When a building is created, update the corresponding build history entry so the next
-  // build can be started without waiting for the current one to finish. Mark it as
-  // Started and clear the assigned unit id (the builder is now a building).
-  if let Some(pos) = state.unit_build_history.iter().position(|entry| {
-    entry
-      .unit_type
-      .map(|ut| ut == unit.get_type())
-      .unwrap_or(false)
-  }) {
-    if let Some(entry) = state.unit_build_history.get_mut(pos) {
+fn check_if_building_started(game: &Game, player: &Player, state: &mut GameState) {
+  let started_history_items = state
+    .unit_build_history
+    .iter_mut()
+    .filter(|entry| entry.status == BuildStatus::Assigned)
+    .collect::<Vec<&mut BuildHistoryEntry>>();
+
+  let buildings_under_construction: Vec<Unit> = player
+    .get_units()
+    .iter()
+    .filter(|u| u.is_constructing())
+    .cloned()
+    .collect();
+
+  for entry in started_history_items {
+    let Some(unit_type) = entry.unit_type else {
+      continue;
+    };
+    let Some(builder_id) = entry.assigned_unit_id else {
+      continue;
+    };
+    let Some(builder) = game.get_unit(builder_id) else {
+      continue;
+    };
+
+    let builder_order = builder.get_order();
+
+    let building_type_is_under_construction = buildings_under_construction
+      .iter()
+      .any(|b| b.get_type() == unit_type);
+
+    // println!(
+    //   "Builder {} assigned to build {:?}, under construction: {:?}, order: {:?}",
+    //   builder_id, unit_type, building_type_is_under_construction, builder_order
+    // );
+    if builder_order == Order::ConstructingBuilding && building_type_is_under_construction {
+      println!(
+        "Builder {} has started constructing {:?}",
+        builder_id, unit_type
+      );
       entry.status = BuildStatus::Started;
-      entry.assigned_unit_id = None;
     }
   }
 }
 
-pub fn on_unit_create(_unit: &Unit, _state: &mut GameState) {}
+fn try_restart_failed_builds(game: &Game, player: &Player, state: &mut GameState) {
+  for entry in state.unit_build_history.iter_mut() {
+    if entry.status != BuildStatus::Assigned {
+      continue;
+    }
+    let Some(unit_type) = entry.unit_type else {
+      continue;
+    };
+    let Some(builder_id) = entry.assigned_unit_id else {
+      continue;
+    };
+    let Some(builder) = game.get_unit(builder_id) else {
+      continue;
+    };
+
+    if !matches!(
+      builder.get_order(),
+      Order::ConstructingBuilding | Order::PlaceBuilding | Order::ResetCollision
+    ) {
+      println!(
+        "Builder {} is not constructing (order: {:?}) for assigned build of {}",
+        builder_id,
+        builder.get_order(),
+        unit_type.name()
+      );
+      let Some(new_location) =
+        build_location_utils::find_build_location(game, player, &builder, unit_type, 42)
+      else {
+        println!(
+          "Cannot build {}: no valid location found for builder {}",
+          unit_type.name(),
+          builder_id
+        );
+        continue;
+      };
+
+      match builder.build(unit_type, new_location) {
+        Ok(true) => {
+          println!(
+            "Restarted building {} by builder {}",
+            unit_type.name(),
+            builder_id
+          );
+          entry.tile_position = Some(new_location);
+        }
+        Ok(false) => {
+          println!(
+            "Restart build order failed for {} by builder {}",
+            unit_type.name(),
+            builder_id
+          );
+        }
+        Err(e) => {
+          println!(
+            "Restart build order FAILED for {} by builder {}: {:?}",
+            unit_type.name(),
+            builder_id,
+            e
+          );
+        }
+      }
+    }
+  }
+}
 
 fn try_start_next_build(game: &Game, player: &Player, state: &mut GameState) {
   if !should_start_next_build(game, player, state) {
@@ -54,7 +148,7 @@ fn start_building_construction(
   unit_type: UnitType,
 ) {
   let Some(builder) = find_builder_for_unit(player, unit_type, state) else {
-    println!("No builder available to train {}", unit_type.name());
+    println!("No builder available to train {:?}", unit_type);
     return;
   };
   let builder_id = builder.get_id();
@@ -80,17 +174,23 @@ fn start_building_construction(
   });
 
   match builder.build(unit_type, building_location) {
-    Ok(true) => {}
+    Ok(true) => {
+      println!(
+        "Started building {} by builder {}",
+        unit_type.name(),
+        builder_id
+      );
+    }
     Ok(false) => {
       println!(
-        "Build command failed for {} by builder {}",
+        "Build order failed for {} by builder {}",
         unit_type.name(),
         builder_id
       );
     }
     Err(e) => {
       println!(
-        "Build command FAILED for {} by builder {}: {:?}",
+        "Build order FAILED for {} by builder {}: {:?}",
         unit_type.name(),
         builder_id,
         e
@@ -138,14 +238,13 @@ fn should_start_next_build(game: &Game, player: &Player, state: &mut GameState) 
   if state
     .unit_build_history
     .iter()
-    .any(|entry| entry.status == BuildStatus::Assigned)
+    .any(|entry: &BuildHistoryEntry| entry.status == BuildStatus::Assigned)
   {
     return false;
   }
 
   true
 }
-
 
 fn get_status_for_stage_items(
   _game: &Game,
@@ -229,9 +328,9 @@ fn check_need_more_supply(_game: &Game, player: &Player, _state: &GameState) -> 
   let supply_remaining = supply_total - supply_used;
   let threshold = ((supply_total as f32) * 0.15).ceil() as i32;
   if supply_remaining <= threshold && supply_total < 400 {
-    let pylon_type = UnitType::Protoss_Pylon;
-    if can_afford_unit(player, pylon_type) {
-      return Some(pylon_type);
+    let unit_supply_type = UnitType::Terran_Supply_Depot;
+    if can_afford_unit(player, unit_supply_type) {
+      return Some(unit_supply_type);
     }
   }
   None
@@ -253,57 +352,6 @@ fn find_builder_for_unit(
         && (u.is_idle() || u.is_gathering_minerals() || u.is_gathering_gas())
     })
     .cloned()
-}
-
-fn assign_builder_to_construct(
-  game: &Game,
-  player: &Player,
-  builder: &rsbwapi::Unit,
-  unit_type: UnitType,
-  state: &mut GameState,
-) -> Option<(bool, Option<rsbwapi::TilePosition>)> {
-  let builder_id = builder.get_id();
-  if unit_type.is_building() {
-    let build_location =
-      build_location_utils::find_build_location(game, player, builder, unit_type, 42);
-    if let Some(pos) = build_location {
-      println!(
-        "Attempting to build {} at {:?} with worker {}",
-        unit_type.name(),
-        pos,
-        builder_id,
-      );
-      match builder.build(unit_type, pos) {
-        Ok(_) => {
-          println!("Build command succeeded for {}", unit_type.name());
-          // No intended command for building actions; the builder (worker) will be tracked via ongoing constructions.
-          Some((true, Some(pos)))
-        }
-        Err(e) => {
-          println!("Build command FAILED for {}: {:?}", unit_type.name(), e);
-          Some((false, None))
-        }
-      }
-    } else {
-      println!(
-        "No valid build location found for {} by builder {}",
-        unit_type.name(),
-        builder.get_id()
-      );
-      Some((false, None))
-    }
-  } else {
-    match builder.train(unit_type) {
-      Ok(_) => {
-        // No intended command for training; the building will be tracked via ongoing constructions.
-        Some((true, None))
-      }
-      Err(e) => {
-        println!("Train command FAILED for {}: {:?}", unit_type.name(), e);
-        Some((false, None))
-      }
-    }
-  }
 }
 
 fn count_units_of_type(player: &Player, _state: &GameState, unit_type: UnitType) -> i32 {

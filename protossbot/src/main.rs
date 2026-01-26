@@ -18,12 +18,13 @@ fn main() {
   // Start web server in a separate thread
   let shared_speed_clone = shared_speed.clone();
   let build_status_clone = build_status.clone();
+  let game_state_for_thread = game_state.clone();
   std::thread::spawn(move || {
     let runtime = tokio::runtime::Runtime::new().unwrap();
-    runtime.block_on(web_server::start_web_server(
+runtime.block_on(web_server::start_web_server(
       shared_speed_clone,
       build_status_clone,
-      game_state.clone(),
+      game_state_for_thread,
     ));
   });
 
