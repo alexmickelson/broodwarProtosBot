@@ -28,27 +28,25 @@ pub fn get_build_stages() -> Vec<BuildStage> {
       .with_unit(UnitType::Terran_Supply_Depot, 1),
     BuildStage::new("Basic Production")
       .with_unit(UnitType::Terran_SCV, 12)
-      .with_unit(UnitType::Terran_Barracks, 1)
-      .with_unit(UnitType::Terran_Refinery, 1),
+      .with_unit(UnitType::Terran_Barracks, 2),
     BuildStage::new("Defense Bunker")
-      .with_unit(UnitType::Terran_SCV, 16)
+      .with_unit(UnitType::Terran_SCV, 14)
       .with_unit(UnitType::Terran_Supply_Depot, 2)
-      .with_unit(UnitType::Terran_Command_Center, 1)
-      .with_unit(UnitType::Terran_Barracks, 1)
-      .with_unit(UnitType::Terran_Refinery, 1),
+      .with_unit(UnitType::Terran_Barracks, 4)
+      .with_unit(UnitType::Terran_Marine, 8),
     BuildStage::new("Mid Game")
+      .with_unit(UnitType::Terran_Refinery, 1)
       .with_unit(UnitType::Terran_SCV, 20)
       .with_unit(UnitType::Terran_Engineering_Bay, 1)
-      .with_unit(UnitType::Terran_Supply_Depot, 3)
+      .with_unit(UnitType::Terran_Supply_Depot, 2)
       .with_unit(UnitType::Terran_Command_Center, 2)
-      .with_unit(UnitType::Terran_Barracks, 2)
+      .with_unit(UnitType::Terran_Barracks, 3)
       .with_unit(UnitType::Terran_Academy, 1)
-      .with_unit(UnitType::Terran_Marine, 4),
-    
+      .with_unit(UnitType::Terran_Marine, 15),
     BuildStage::new("Spam Units")
       .with_unit(UnitType::Terran_Missile_Turret, 2)
       .with_unit(UnitType::Terran_Marine, 100)
       .with_unit(UnitType::Terran_Firebat, 20)
-      .with_unit(UnitType::Terran_Barracks, 8)
+      .with_unit(UnitType::Terran_Barracks, 8),
   ]
 }

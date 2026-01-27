@@ -3,7 +3,7 @@ use rsbwapi::{Game, Order, Player, Unit};
 
 use crate::state::game_state::{BuildStatus, GameState};
 
-pub fn assign_idle_workers_to_minerals(game: &Game, player: &Player, state: &mut GameState) {
+pub fn worker_onframe(game: &Game, player: &Player, state: &mut GameState) {
   let all_units = player.get_units();
   let workers: Vec<Unit> = all_units
     .iter()
@@ -13,6 +13,8 @@ pub fn assign_idle_workers_to_minerals(game: &Game, player: &Player, state: &mut
     })
     .cloned()
     .collect();
+
+  prevent_too_many_gas_workers(game, player, state, &workers);
 
   for worker in workers {
     let already_assigned = state.unit_build_history.iter().any(|entry| {
@@ -26,6 +28,26 @@ pub fn assign_idle_workers_to_minerals(game: &Game, player: &Player, state: &mut
       assign_worker_to_refinery(game, player, &worker, state);
     } else {
       assign_worker_to_mineral(game, player, &worker, state);
+    }
+  }
+}
+
+fn prevent_too_many_gas_workers(
+  game: &Game,
+  player: &Player,
+  state: &mut GameState,
+  workers: &Vec<Unit>,
+) {
+  let workers_mining_gas: Vec<Unit> = workers
+    .iter()
+    .filter(|u| u.is_gathering_gas())
+    .cloned()
+    .collect();
+
+  for worker in &workers_mining_gas {
+    let refinery_assigned = state.worker_refinery_assignments.get(&worker.get_id());
+    if !refinery_assigned.is_some() {
+      assign_worker_to_mineral(game, player, worker, state);
     }
   }
 }

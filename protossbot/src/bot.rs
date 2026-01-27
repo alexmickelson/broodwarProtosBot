@@ -57,7 +57,7 @@ impl AiModule for ProtosBot {
     }
 
     build_manager::on_frame(game, &player, &mut locked_state);
-    worker_management::assign_idle_workers_to_minerals(game, &player, &mut locked_state);
+    worker_management::worker_onframe(game, &player, &mut locked_state);
 
     // Update web server with current build status
     let stage_name = locked_state

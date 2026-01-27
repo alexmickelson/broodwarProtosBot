@@ -42,7 +42,7 @@ pub fn military_onframe(game: &Game, player: &Player, state: &mut GameState) {
 
   if enemies_near_my_buildings.len() > 0 {
     for unit in military_units_not_in_squads {
-      if !unit.is_idle() {
+      if matches!(unit.get_order(), Order::AttackUnit | Order::AttackMove) {
         continue;
       }
       println!(
