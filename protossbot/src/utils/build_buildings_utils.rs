@@ -51,14 +51,13 @@ pub fn check_if_building_started(game: &Game, player: &Player, state: &mut GameS
 }
 
 pub fn try_restart_failed_builing_builds(game: &Game, player: &Player, state: &mut GameState) {
-  for entry in state.unit_build_history.iter_mut() {
+  let mut to_restart = Vec::new();
+
+  for (idx, entry) in state.unit_build_history.iter().enumerate() {
     if entry.status != BuildStatus::Assigned {
       continue;
     }
-    let Some(unit_type) = entry.unit_type else {
-      continue;
-    };
-    let Some(builder_id) = entry.assigned_unit_id else {
+    let (Some(unit_type), Some(builder_id)) = (entry.unit_type, entry.assigned_unit_id) else {
       continue;
     };
     let Some(builder) = game.get_unit(builder_id) else {
@@ -69,47 +68,64 @@ pub fn try_restart_failed_builing_builds(game: &Game, player: &Player, state: &m
       builder.get_order(),
       Order::ConstructingBuilding | Order::PlaceBuilding | Order::ResetCollision
     ) {
+      to_restart.push((idx, unit_type, builder_id));
+    }
+  }
+
+  for (idx, unit_type, builder_id) in to_restart {
+    let Some(builder) = game.get_unit(builder_id) else {
+      continue;
+    };
+
+    let Some(new_location) =
+      build_location_utils::find_build_location_default(game, player, state, &builder, unit_type)
+    else {
       println!(
-        "Builder {} is not constructing (order: {:?}) for assigned build of {}",
+        "Cannot build {}: no valid location found for builder {}, tick {}",
+        unit_type.name(),
         builder_id,
-        builder.get_order(),
-        unit_type.name()
+        game.get_frame_count()
       );
-      let Some(new_location) =
-        build_location_utils::find_build_location_default(game, player, &builder, unit_type)
-      else {
+      continue;
+    };
+
+    let old_order = builder.get_order();
+
+    match builder.build(unit_type, new_location) {
+      Ok(true) => {
         println!(
-          "Cannot build {}: no valid location found for builder {}",
+          "Restarted building {} by builder {}",
           unit_type.name(),
           builder_id
         );
-        continue;
-      };
-
-      match builder.build(unit_type, new_location) {
-        Ok(true) => {
-          println!(
-            "Restarted building {} by builder {}",
-            unit_type.name(),
-            builder_id
-          );
-          entry.tile_position = Some(new_location);
+        state.unit_build_history[idx].tile_position = Some(new_location);
+      }
+      Ok(false) => {
+        println!(
+          "Restart build order failed for {} by builder {} (old order: {:?})",
+          unit_type.name(),
+          builder_id,
+          old_order
+        );
+      }
+      Err(Error::Incompatible_UnitType) => {
+        println!(
+          "Incompatible UnitType for {} by builder {}, reassigning",
+          unit_type.name(),
+          builder_id,
+        );
+        let new_builder = find_builder_for_unit(player, unit_type, state);
+        if let Some(new_builder) = new_builder {
+          state.unit_build_history[idx].assigned_unit_id = Some(new_builder.get_id());
         }
-        Ok(false) => {
-          println!(
-            "Restart build order failed for {} by builder {}",
-            unit_type.name(),
-            builder_id
-          );
-        }
-        Err(e) => {
-          println!(
-            "Restart build order FAILED for {} by builder {}: {:?}",
-            unit_type.name(),
-            builder_id,
-            e
-          );
-        }
+      }
+      Err(e) => {
+        println!(
+          "Restart build order FAILED for {} by builder {}: {:?}",
+          unit_type.name(),
+          builder_id,
+          e
+        );
       }
     }
   }
@@ -128,7 +144,7 @@ pub fn start_building_construction(
   let builder_id = builder.get_id();
 
   let Some(building_location) =
-    build_location_utils::find_build_location_default(game, player, &builder, unit_type)
+    build_location_utils::find_build_location_default(game, player, state, &builder, unit_type)
   else {
     state.unit_build_history.push(BuildHistoryEntry {
       unit_type: Some(unit_type),
@@ -161,6 +177,7 @@ pub fn start_building_construction(
         unit_type.name(),
         builder_id
       );
+      explore_location_for_building(game, &building_location, builder_id, unit_type);
     }
     Err(e) => {
       println!(
@@ -176,7 +193,7 @@ pub fn start_building_construction(
 fn find_builder_for_unit(
   player: &Player,
   unit_type: UnitType,
-  _state: &GameState,
+  state: &GameState,
 ) -> Option<rsbwapi::Unit> {
   let builder_type = unit_type.what_builds().0;
   player
@@ -187,6 +204,28 @@ fn find_builder_for_unit(
         && !u.is_constructing()
         && !u.is_training()
         && (u.is_idle() || u.is_gathering_minerals() || u.is_gathering_gas())
+        && !state.worker_refinery_assignments.contains_key(&u.get_id())
     })
     .cloned()
+}
+
+fn explore_location_for_building(
+  game: &Game,
+  location: &TilePosition,
+  builder_id: usize,
+  unit_type: UnitType,
+) {
+  let Some(builder) = game.get_unit(builder_id) else {
+    return;
+  };
+  println!(
+    "moving builder {} next to build location to build {}",
+    builder_id,
+    unit_type.name()
+  );
+  let build_pos = Position {
+    x: (location.x * 32) - 16,
+    y: (location.y * 32),
+  };
+  builder.move_(build_pos);
 }

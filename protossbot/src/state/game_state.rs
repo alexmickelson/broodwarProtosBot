@@ -1,4 +1,4 @@
-use rsbwapi::{*};
+use rsbwapi::*;
 use std::collections::HashMap;
 
 use crate::state::build_stages::BuildStage;
@@ -8,7 +8,9 @@ pub struct GameState {
   pub build_stages: Vec<BuildStage>,
   pub current_stage_index: usize,
   pub stage_item_status: HashMap<String, String>,
-  pub base_locations: Vec<TilePosition>,
+  pub base_locations: Vec<BaseLocation>,
+  pub squads: Vec<Squad>,
+  pub worker_refinery_assignments: HashMap<usize, usize>,
 }
 
 impl Default for GameState {
@@ -19,6 +21,8 @@ impl Default for GameState {
       current_stage_index: 0,
       stage_item_status: HashMap::new(),
       base_locations: Vec::new(),
+      squads: Vec::new(),
+      worker_refinery_assignments: HashMap::new(),
     }
   }
 }
@@ -36,4 +40,22 @@ pub struct BuildHistoryEntry {
   pub assigned_unit_id: Option<usize>,
   pub tile_position: Option<rsbwapi::TilePosition>,
   pub status: BuildStatus,
+}
+
+#[derive(Clone, Debug)]
+pub struct CheckedPosition {
+  pub tile_position: TilePosition,
+  pub is_valid: bool,
+}
+
+#[derive(Clone, Debug)]
+pub struct BaseLocation {
+  pub position: TilePosition,
+  pub checked_positions: Vec<CheckedPosition>,
+}
+
+#[derive(Clone, Debug)]
+pub struct Squad {
+  pub unit_ids: Vec<usize>,
+  pub target_position: Option<Position>,
 }

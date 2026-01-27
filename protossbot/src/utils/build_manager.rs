@@ -129,10 +129,14 @@ fn get_status_for_stage_items(
   status_map
 }
 
-pub fn get_next_thing_to_build(game: &Game, player: &Player, state: &GameState) -> Option<UnitType> {
+pub fn get_next_thing_to_build(
+  game: &Game,
+  player: &Player,
+  state: &GameState,
+) -> Option<UnitType> {
   let current_stage = state.build_stages.get(state.current_stage_index)?;
-  if let Some(pylon) = check_need_more_supply(game, player, state) {
-    return Some(pylon);
+  if need_more_supply(game, player, state) {
+    return Some(UnitType::Terran_Supply_Depot);
   }
   let status_map = get_status_for_stage_items(game, player, state);
   let mut candidates = Vec::new();
@@ -151,21 +155,18 @@ pub fn get_next_thing_to_build(game: &Game, player: &Player, state: &GameState) 
     .max_by_key(|unit_type| unit_type.mineral_price() + unit_type.gas_price())
 }
 
-fn check_need_more_supply(_game: &Game, player: &Player, _state: &GameState) -> Option<UnitType> {
+fn need_more_supply(_game: &Game, player: &Player, _state: &GameState) -> bool {
   let supply_used = player.supply_used();
   let supply_total = player.supply_total();
   if supply_total == 0 {
-    return None;
+    return false;
   }
   let supply_remaining = supply_total - supply_used;
   let threshold = ((supply_total as f32) * 0.15).ceil() as i32;
-  if supply_remaining <= threshold && supply_total < 400 {
-    let unit_supply_type = UnitType::Terran_Supply_Depot;
-    if can_afford_unit(player, unit_supply_type) {
-      return Some(unit_supply_type);
-    }
+  if supply_remaining <= threshold && supply_total < 200 {
+    return true
   }
-  None
+  false
 }
 
 fn find_builder_for_unit(

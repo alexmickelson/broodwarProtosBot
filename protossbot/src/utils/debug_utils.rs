@@ -1,5 +1,3 @@
-use crate::utils::build_location_utils;
-
 use rsbwapi::*;
 
 use crate::{
@@ -55,7 +53,17 @@ pub fn print_pending_buildings(game: &Game, state: &GameState) {
 }
 pub fn print_base_locations(game: &Game, state: &GameState) {
   for (index, base) in state.base_locations.iter().enumerate() {
-    let pos = (base.x * 32, base.y * 32);
+    let pos = (base.position.x * 32, base.position.y * 32);
     game.draw_text_map(pos, &format!("Base {}", index));
+    game.draw_circle_map(pos, 4, Color::Blue, true);
+
+    // for checked in &base.checked_positions {
+    //   let cpos = (checked.tile_position.x * 32, checked.tile_position.y * 32);
+    //   if checked.is_valid {
+    //     game.draw_circle_map(cpos, 2, Color::Green, true);
+    //   } else {
+    //     game.draw_circle_map(cpos, 2, Color::Red, true);
+    //   }
+    // }
   }
 }

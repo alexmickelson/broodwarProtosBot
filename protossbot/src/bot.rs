@@ -1,6 +1,8 @@
 use crate::{
   state::game_state::GameState,
-  utils::{build_location_utils, build_manager, debug_utils, worker_management},
+  utils::{
+    build_location_utils, build_manager, debug_utils, military_management, worker_management,
+  },
 };
 use rsbwapi::*;
 use std::sync::{Arc, Mutex};
@@ -69,6 +71,7 @@ impl AiModule for ProtosBot {
       locked_state.stage_item_status.clone(),
     );
 
+    military_management::military_onframe(game, &player, &mut locked_state);
     debug_utils::print_debug_build_status(game, &player, &locked_state);
     draw_unit_ids(game);
   }

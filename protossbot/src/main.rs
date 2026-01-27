@@ -7,6 +7,8 @@ mod utils {
   pub mod build_manager;
   pub mod worker_management;
   pub mod debug_utils;
+  pub mod base_location_utils;
+  pub mod military_management;
 }
 
 use bot::ProtosBot;
