@@ -76,6 +76,7 @@ fn defend_base(game: &Game, player: &Player, military_units: &[Unit]) {
       dx + dy
     }) {
       let enemy_pos = closest_enemy.get_position();
+      // If already attacking this enemy, skip
       if matches!(unit.get_order(), Order::AttackUnit | Order::AttackMove) {
         if let Some(order_target) = unit.get_order_target() {
           if order_target.get_id() == closest_enemy.get_id() {
@@ -83,24 +84,31 @@ fn defend_base(game: &Game, player: &Player, military_units: &[Unit]) {
           }
         }
       }
-      // Always attack the closest enemy unit
+      // Try to attack the enemy directly
+      let can = unit.can_attack_unit(closest_enemy);
       println!(
         "Unit {} was {:?} now attacking due to nearby enemies",
         unit.get_id(),
         unit.get_order()
       );
-      match unit.attack(closest_enemy) {
-        Ok(true) => {}
-        Ok(false) => {
-          unit.move_(closest_enemy.get_position());
-        }
-        Err(e) => {
-          println!(
-            "Failed to order unit {} to attack enemy {}: {:?}",
-            unit.get_id(),
-            closest_enemy.get_id(),
-            e
-          );
+      match can {
+        Ok(true) => match unit.attack(closest_enemy) {
+          Ok(true) => {}
+          Ok(false) => {
+            let _ = unit.move_(enemy_pos);
+          }
+          Err(e) => {
+            println!(
+              "Failed to order unit {} to attack enemy {}: {:?}",
+              unit.get_id(),
+              closest_enemy.get_id(),
+              e
+            );
+          }
+        },
+        _ => {
+          // If can't attack directly, attack the position of the nearest unit
+          let _ = unit.attack(enemy_pos);
         }
       }
     }
@@ -162,12 +170,12 @@ fn send_out_new_squad(
       unit.get_id(),
       unit.get_order()
     );
-    unit.attack(new_squad.target_position.unwrap());
+    let _ = unit.attack(new_squad.target_position.unwrap());
   }
   state.squads.push(new_squad);
 }
 
-fn keep_medics_close_to_other_units(game: &Game, player: &Player, state: &mut GameState) {
+fn keep_medics_close_to_other_units(_game: &Game, player: &Player, _state: &mut GameState) {
   let medic_units: Vec<Unit> = player
     .get_units()
     .iter()
@@ -201,7 +209,7 @@ fn keep_medics_close_to_other_units(game: &Game, player: &Player, state: &mut Ga
           "Medic {} is too far from allies, moving closer",
           medic.get_id()
         );
-        medic.move_(closest_pos);
+        let _ = medic.move_(closest_pos);
       }
     }
   }
