@@ -198,10 +198,9 @@ fn get_status_for_stage_items(
     let player_gas = player.gas();
     let building_type = upgrade_type.what_upgrades();
     // Find an idle, completed building that can do the upgrade
-    let has_idle_building = player
-      .get_units()
-      .iter()
-      .any(|u| u.get_type() == building_type && u.is_completed() && u.is_idle() && !u.is_upgrading());
+    let has_idle_building = player.get_units().iter().any(|u| {
+      u.get_type() == building_type && u.is_completed() && u.is_idle() && !u.is_upgrading()
+    });
     let has_building = player
       .get_units()
       .iter()
@@ -247,6 +246,7 @@ pub fn get_next_thing_to_build(
 ) -> Option<NextBuildItem> {
   let current_stage = state.build_stages.get(state.current_stage_index)?;
   if need_more_supply(game, player, state) {
+    println!("Decided to build supply depot next");
     return Some(NextBuildItem::Unit(UnitType::Terran_Supply_Depot));
   }
   let status_map = get_status_for_stage_items(game, player, state);
@@ -300,12 +300,16 @@ fn need_more_supply(_game: &Game, player: &Player, _state: &GameState) -> bool {
   if supply_total == 0 {
     return false;
   }
-  let supply_remaining = supply_total - supply_used;
-  let threshold = ((supply_total as f32) * 0.15).ceil() as i32;
-  if supply_remaining <= threshold && supply_total < 200 {
-    return true;
-  }
-  false
+  let supply_depots_in_progress: i32 = player
+    .get_units()
+    .iter()
+    .filter(|u| {
+      u.get_type() == UnitType::Terran_Supply_Depot && !u.is_completed() && u.exists()
+    })
+    .count() as i32;
+
+  let supply_ratio = supply_used as f32 / (supply_total + supply_depots_in_progress * 8) as f32;
+  return supply_ratio >= 0.85 || (supply_total - supply_used) <= 1;
 }
 
 fn find_builder_for_unit(

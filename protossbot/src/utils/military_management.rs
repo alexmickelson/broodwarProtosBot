@@ -2,24 +2,12 @@ use crate::state::game_state::{GameState, Squad};
 use rsbwapi::*;
 
 pub fn military_onframe(game: &Game, player: &Player, state: &mut GameState) {
-  let military_units_not_in_squads = player
+  let all_my_military_units: Vec<Unit> = player
     .get_units()
     .iter()
-    .filter(|u| {
-      u.get_type().is_building() == false
-        && u.get_type().is_worker() == false
-        && !state
-          .squads
-          .iter()
-          .any(|squad| squad.unit_ids.contains(&u.get_id()))
-    })
+    .filter(|u| u.get_type().is_building() == false && u.get_type().is_worker() == false)
     .cloned()
-    .collect::<Vec<Unit>>();
-
-  let military_supply = military_units_not_in_squads
-    .iter()
-    .map(|u| u.get_type().supply_required())
-    .sum::<i32>();
+    .collect();
 
   let enemies_near_my_buildings: Vec<Unit> = game
     .get_all_units()
@@ -41,10 +29,30 @@ pub fn military_onframe(game: &Game, player: &Player, state: &mut GameState) {
     .collect();
 
   if enemies_near_my_buildings.len() > 0 {
-    defend_base(game, player, &military_units_not_in_squads);
+    defend_base(game, player, &all_my_military_units);
     keep_medics_close_to_other_units(game, player, state);
     return;
   }
+
+  let military_units_not_in_squads = player
+    .get_units()
+    .iter()
+    .filter(|u| {
+      u.get_type().is_building() == false
+        && u.get_type().is_worker() == false
+        && !state
+          .squads
+          .iter()
+          .any(|squad| squad.unit_ids.contains(&u.get_id()))
+    })
+    .cloned()
+    .collect::<Vec<Unit>>();
+
+  let military_supply = military_units_not_in_squads
+    .iter()
+    .map(|u| u.get_type().supply_required())
+    .sum::<i32>();
+
   if military_supply > 70 {
     send_out_new_squad(game, player, state, military_units_not_in_squads);
   }
@@ -81,7 +89,20 @@ fn defend_base(game: &Game, player: &Player, military_units: &[Unit]) {
         unit.get_id(),
         unit.get_order()
       );
-      let _ = unit.attack(closest_enemy);
+      match unit.attack(closest_enemy) {
+        Ok(true) => {}
+        Ok(false) => {
+          unit.move_(closest_enemy.get_position());
+        }
+        Err(e) => {
+          println!(
+            "Failed to order unit {} to attack enemy {}: {:?}",
+            unit.get_id(),
+            closest_enemy.get_id(),
+            e
+          );
+        }
+      }
     }
   }
 }
