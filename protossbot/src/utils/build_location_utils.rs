@@ -46,7 +46,7 @@ pub fn find_build_location(
         x: base.position.x + dx,
         y: base.position.y + dy,
       };
-      if is_viable_location(game, player, builder, candidate, building_type) {
+      if is_viable_location(game, player, builder, candidate, building_type, game_state) {
         return Some(candidate);
       }
     }
@@ -98,6 +98,7 @@ fn is_viable_location(
   builder: &Unit,
   tile_position: TilePosition,
   building_type: UnitType,
+  game_state: &GameState,
 ) -> bool {
   let is_buildable = match game.can_build_here(builder, tile_position, building_type, true) {
     Ok(can_build) => can_build,
@@ -114,8 +115,42 @@ fn is_viable_location(
   if is_next_to_other_building(player, tile_position, building_type) {
     return false;
   }
-
+  if building_covers_command_center_location(tile_position, building_type, game_state) {
+    return false;
+  }
   true
+}
+
+fn building_covers_command_center_location(
+  tile_position: TilePosition,
+  building_type: UnitType,
+  game_state: &GameState,
+) -> bool {
+  let building_width = building_type.tile_width();
+  let building_height = building_type.tile_height();
+  let cc_width = UnitType::Terran_Command_Center.tile_width();
+  let cc_height = UnitType::Terran_Command_Center.tile_height();
+  for base in &game_state.base_locations {
+    let base_x = base.position.x;
+    let base_y = base.position.y;
+    // Check if any tile of the building would overlap any tile of the command center footprint
+    for bx in 0..building_width {
+      for by in 0..building_height {
+        let px = tile_position.x + bx;
+        let py = tile_position.y + by;
+        for cc_bx in 0..cc_width {
+          for cc_by in 0..cc_height {
+            let cc_px = base_x + cc_bx;
+            let cc_py = base_y + cc_by;
+            if px == cc_px && py == cc_py {
+              return true;
+            }
+          }
+        }
+      }
+    }
+  }
+  false
 }
 
 fn blocks_worker_path(game: &Game, tile_position: &TilePosition, building_type: UnitType) -> bool {

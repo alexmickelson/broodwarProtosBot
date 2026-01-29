@@ -59,16 +59,26 @@ impl AiModule for ProtosBot {
     build_manager::on_frame(game, &player, &mut locked_state);
     worker_management::worker_onframe(game, &player, &mut locked_state);
 
-    // Update web server with current build status
     let stage_name = locked_state
       .build_stages
       .get(locked_state.current_stage_index)
       .map(|s| s.name.clone())
       .unwrap_or_else(|| "Unknown".to_string());
+    let upgrade_status = if let Some(stage) = locked_state.build_stages.get(locked_state.current_stage_index) {
+      let mut map = std::collections::HashMap::new();
+      for upgrade in &stage.desired_upgrades {
+        // Example: just mark as "Pending"; you can enhance this logic
+        map.insert(format!("{:?}", upgrade), "Pending".to_string());
+      }
+      map
+    } else {
+      std::collections::HashMap::new()
+    };
     self.build_status.update(
       stage_name,
       locked_state.current_stage_index,
       locked_state.stage_item_status.clone(),
+      upgrade_status,
     );
 
     military_management::military_onframe(game, &player, &mut locked_state);

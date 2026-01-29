@@ -91,6 +91,15 @@ pub fn try_restart_failed_builing_builds(game: &Game, player: &Player, state: &m
 
     let old_order = builder.get_order();
 
+
+    if unit_type == UnitType::Terran_Command_Center && old_order == Order::Move {
+      println!(
+        "Skipping restart of Command Center build by builder {} is moving",
+        builder_id
+      );
+      continue;
+    }
+
     match builder.build(unit_type, new_location) {
       Ok(true) => {
         println!(

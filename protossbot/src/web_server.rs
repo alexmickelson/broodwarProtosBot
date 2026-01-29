@@ -38,6 +38,7 @@ pub struct BuildStatusData {
   pub stage_name: String,
   pub stage_index: usize,
   pub item_status: HashMap<String, String>,
+  pub upgrade_status: HashMap<String, String>,
 }
 
 #[derive(Clone)]
@@ -57,11 +58,13 @@ impl SharedBuildStatus {
     stage_name: String,
     stage_index: usize,
     item_status: HashMap<String, String>,
+    upgrade_status: HashMap<String, String>,
   ) {
     let mut data = self.data.lock().unwrap();
     data.stage_name = stage_name;
     data.stage_index = stage_index;
     data.item_status = item_status;
+    data.upgrade_status = upgrade_status;
   }
 
   pub fn get(&self) -> BuildStatusData {
@@ -91,11 +94,18 @@ pub struct BuildStatusResponse {
   pub stage_name: String,
   pub stage_index: usize,
   pub items: Vec<BuildItemStatusInfo>,
+  pub upgrades: Vec<BuildUpgradeStatusInfo>,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct BuildItemStatusInfo {
   pub unit_name: String,
+  pub status: String,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct BuildUpgradeStatusInfo {
+  pub upgrade_name: String,
   pub status: String,
 }
 
@@ -146,10 +156,20 @@ async fn get_build_status(State(app_state): State<AppState>) -> Response {
     })
     .collect();
 
+  let upgrades: Vec<BuildUpgradeStatusInfo> = data
+    .upgrade_status
+    .iter()
+    .map(|(upgrade_name, status)| BuildUpgradeStatusInfo {
+      upgrade_name: upgrade_name.clone(),
+      status: status.clone(),
+    })
+    .collect();
+
   let response = BuildStatusResponse {
     stage_name: data.stage_name,
     stage_index: data.stage_index,
     items,
+    upgrades,
   };
 
   (StatusCode::OK, Json(response)).into_response()

@@ -11,20 +11,33 @@ pub fn print_debug_build_status(game: &Game, player: &Player, state: &GameState)
 }
 
 pub fn print_next_build_item(game: &Game, player: &Player, state: &GameState) {
-  let next_build = build_manager::get_next_thing_to_build(game, player, state);
-  let next_build_str = if let Some(unit_type) = next_build {
-    format!(
-      "Next: {} ({}/{} M, {}/{} G)",
-      unit_type.name(),
-      player.minerals(),
-      unit_type.mineral_price(),
-      player.gas(),
-      unit_type.gas_price()
-    )
-  } else {
-    "Next: None".to_string()
-  };
-  game.draw_text_screen((0, 10), &next_build_str);
+    let next_build = build_manager::get_next_thing_to_build(game, player, state);
+    use crate::utils::build_manager::NextBuildItem;
+    let next_build_str = match next_build {
+        Some(NextBuildItem::Unit(unit_type)) => {
+            format!(
+                "Next: {} ({}/{} M, {}/{} G)",
+                unit_type.name(),
+                player.minerals(),
+                unit_type.mineral_price(),
+                player.gas(),
+                unit_type.gas_price()
+            )
+        }
+        Some(NextBuildItem::Upgrade(upgrade_type)) => {
+          // Use 0 (Terran) as the race argument for upgrade costs
+          let minerals = upgrade_type.mineral_price(0);
+          let gas = upgrade_type.gas_price(0);
+          format!(
+            "Next: Upgrade {:?} ({} M, {} G)",
+            upgrade_type,
+            minerals,
+            gas
+          )
+        }
+        None => "Next: None".to_string(),
+    };
+    game.draw_text_screen((0, 10), &next_build_str);
 }
 
 pub fn print_pending_buildings(game: &Game, state: &GameState) {

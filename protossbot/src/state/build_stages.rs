@@ -1,10 +1,11 @@
-use rsbwapi::UnitType;
+use rsbwapi::{UnitType, UpgradeType};
 use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
 pub struct BuildStage {
   pub name: String,
   pub desired_counts: HashMap<UnitType, i32>,
+  pub desired_upgrades: Vec<UpgradeType>,
 }
 
 impl BuildStage {
@@ -12,11 +13,17 @@ impl BuildStage {
     Self {
       name: name.to_string(),
       desired_counts: HashMap::new(),
+      desired_upgrades: Vec::new(),
     }
   }
 
   pub fn with_unit(mut self, unit_type: UnitType, count: i32) -> Self {
     self.desired_counts.insert(unit_type, count);
+    self
+  }
+
+  pub fn with_upgrade(mut self, upgrade_type: UpgradeType) -> Self {
+    self.desired_upgrades.push(upgrade_type);
     self
   }
 }
@@ -33,7 +40,8 @@ pub fn get_build_stages() -> Vec<BuildStage> {
       .with_unit(UnitType::Terran_SCV, 14)
       .with_unit(UnitType::Terran_Supply_Depot, 2)
       .with_unit(UnitType::Terran_Barracks, 4)
-      .with_unit(UnitType::Terran_Marine, 8),
+      .with_unit(UnitType::Terran_Marine, 8)
+      .with_unit(UnitType::Terran_Engineering_Bay,1),
     BuildStage::new("Mid Game")
       .with_unit(UnitType::Terran_Refinery, 1)
       .with_unit(UnitType::Terran_SCV, 20)
@@ -42,10 +50,15 @@ pub fn get_build_stages() -> Vec<BuildStage> {
       .with_unit(UnitType::Terran_Command_Center, 2)
       .with_unit(UnitType::Terran_Barracks, 3)
       .with_unit(UnitType::Terran_Academy, 1)
+      .with_upgrade(UpgradeType::Terran_Infantry_Weapons)
       .with_unit(UnitType::Terran_Marine, 15),
     BuildStage::new("Spam Units")
+      .with_upgrade(UpgradeType::U_238_Shells)
+      .with_upgrade(UpgradeType::Terran_Infantry_Weapons)
+      .with_upgrade(UpgradeType::Terran_Infantry_Armor)
       .with_unit(UnitType::Terran_Missile_Turret, 2)
       .with_unit(UnitType::Terran_Marine, 100)
+      .with_unit(UnitType::Terran_Medic, 4)
       .with_unit(UnitType::Terran_Firebat, 20)
       .with_unit(UnitType::Terran_Barracks, 8),
   ]
