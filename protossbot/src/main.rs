@@ -5,10 +5,12 @@ mod utils {
   pub mod debug_utils;
   pub mod military_management;
   pub mod worker_management;
+  pub mod unit_utils;
   pub mod build_order {
     pub mod base_location_utils;
     pub mod build_buildings_utils;
     pub mod build_location_utils;
+    pub mod next_thing_to_build;
     pub mod build_manager;
   }
 }

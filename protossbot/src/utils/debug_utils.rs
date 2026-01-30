@@ -2,7 +2,7 @@ use rsbwapi::*;
 
 use crate::{
   state::game_state::{BuildStatus, GameState},
-  utils::build_order::build_manager::{self, NextBuildItem},
+  utils::build_order::{build_manager::NextBuildItem, next_thing_to_build},
 };
 pub fn print_debug_build_status(game: &Game, player: &Player, state: &GameState) {
   print_next_build_item(game, player, state);
@@ -11,7 +11,7 @@ pub fn print_debug_build_status(game: &Game, player: &Player, state: &GameState)
 }
 
 pub fn print_next_build_item(game: &Game, player: &Player, state: &GameState) {
-  let next_build = build_manager::get_next_thing_to_build(game, player, state);
+  let next_build = next_thing_to_build::get_next_thing_to_build(game, player, state);
   let next_build_str = match next_build {
     Some(NextBuildItem::Unit(unit_type)) => {
       format!(
