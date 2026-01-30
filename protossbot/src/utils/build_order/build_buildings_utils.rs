@@ -2,7 +2,7 @@ use rsbwapi::*;
 
 use crate::{
   state::game_state::{BuildHistoryEntry, BuildStatus, GameState},
-  utils::build_location_utils,
+  utils::build_order::build_location_utils,
 };
 
 pub fn check_if_building_started(game: &Game, player: &Player, state: &mut GameState) {
@@ -91,7 +91,6 @@ pub fn try_restart_failed_builing_builds(game: &Game, player: &Player, state: &m
 
     let old_order = builder.get_order();
 
-
     if unit_type == UnitType::Terran_Command_Center && old_order == Order::Move {
       println!(
         "Skipping restart of Command Center build by builder {} is moving",
@@ -116,6 +115,7 @@ pub fn try_restart_failed_builing_builds(game: &Game, player: &Player, state: &m
           builder_id,
           old_order
         );
+        explore_location_for_building(game, &new_location, builder_id, unit_type);
       }
       Err(Error::Incompatible_UnitType) => {
         println!(

@@ -2,7 +2,7 @@ use rsbwapi::*;
 
 use crate::{
   state::game_state::{BuildStatus, GameState},
-  utils::build_manager,
+  utils::build_order::build_manager::{self, NextBuildItem},
 };
 pub fn print_debug_build_status(game: &Game, player: &Player, state: &GameState) {
   print_next_build_item(game, player, state);
@@ -11,33 +11,30 @@ pub fn print_debug_build_status(game: &Game, player: &Player, state: &GameState)
 }
 
 pub fn print_next_build_item(game: &Game, player: &Player, state: &GameState) {
-    let next_build = build_manager::get_next_thing_to_build(game, player, state);
-    use crate::utils::build_manager::NextBuildItem;
-    let next_build_str = match next_build {
-        Some(NextBuildItem::Unit(unit_type)) => {
-            format!(
-                "Next: {} ({}/{} M, {}/{} G)",
-                unit_type.name(),
-                player.minerals(),
-                unit_type.mineral_price(),
-                player.gas(),
-                unit_type.gas_price()
-            )
-        }
-        Some(NextBuildItem::Upgrade(upgrade_type)) => {
-          // Use 0 (Terran) as the race argument for upgrade costs
-          let minerals = upgrade_type.mineral_price(0);
-          let gas = upgrade_type.gas_price(0);
-          format!(
-            "Next: Upgrade {:?} ({} M, {} G)",
-            upgrade_type,
-            minerals,
-            gas
-          )
-        }
-        None => "Next: None".to_string(),
-    };
-    game.draw_text_screen((0, 10), &next_build_str);
+  let next_build = build_manager::get_next_thing_to_build(game, player, state);
+  let next_build_str = match next_build {
+    Some(NextBuildItem::Unit(unit_type)) => {
+      format!(
+        "Next: {} ({}/{} M, {}/{} G)",
+        unit_type.name(),
+        player.minerals(),
+        unit_type.mineral_price(),
+        player.gas(),
+        unit_type.gas_price()
+      )
+    }
+    Some(NextBuildItem::Upgrade(upgrade_type)) => {
+      // Use 0 (Terran) as the race argument for upgrade costs
+      let minerals = upgrade_type.mineral_price(0);
+      let gas = upgrade_type.gas_price(0);
+      format!(
+        "Next: Upgrade {:?} ({} M, {} G)",
+        upgrade_type, minerals, gas
+      )
+    }
+    None => "Next: None".to_string(),
+  };
+  game.draw_text_screen((0, 10), &next_build_str);
 }
 
 pub fn print_pending_buildings(game: &Game, state: &GameState) {
@@ -78,5 +75,38 @@ pub fn print_base_locations(game: &Game, state: &GameState) {
     //     game.draw_circle_map(cpos, 2, Color::Red, true);
     //   }
     // }
+  }
+}
+
+pub fn print_attack_and_move_commands(game: &Game, player: &Player) {
+  let units = player.get_units();
+
+  for unit in units {
+    if unit.is_moving() {
+      if let Some(target_pos) = unit.get_target_position() {
+        game.draw_line_map(
+          (unit.get_position().x, unit.get_position().y),
+          (target_pos.x, target_pos.y),
+          Color::Blue,
+        );
+      }
+    }
+    if unit.is_attacking() {
+      if let Some(target_unit) = unit.get_target() {
+        game.draw_line_map(
+          (unit.get_position().x, unit.get_position().y),
+          (target_unit.get_position().x, target_unit.get_position().y),
+          Color::Red,
+        );
+      }
+
+      if let Some(target_pos) = unit.get_target_position() {
+        game.draw_line_map(
+          (unit.get_position().x, unit.get_position().y),
+          (target_pos.x, target_pos.y),
+          Color::Red,
+        );
+      }
+    }
   }
 }

@@ -4,7 +4,7 @@ use rsbwapi::{Color, Game, Player, UnitType};
 
 use crate::{
   state::game_state::{BuildHistoryEntry, BuildStatus, GameState},
-  utils::build_buildings_utils,
+  utils::build_order::build_buildings_utils,
 };
 
 pub fn on_frame(game: &Game, player: &Player, state: &mut GameState) {
@@ -303,9 +303,7 @@ fn need_more_supply(_game: &Game, player: &Player, _state: &GameState) -> bool {
   let supply_depots_in_progress: i32 = player
     .get_units()
     .iter()
-    .filter(|u| {
-      u.get_type() == UnitType::Terran_Supply_Depot && !u.is_completed() && u.exists()
-    })
+    .filter(|u| u.get_type() == UnitType::Terran_Supply_Depot && !u.is_completed() && u.exists())
     .count() as i32;
 
   let supply_ratio = supply_used as f32 / (supply_total + supply_depots_in_progress * 8) as f32;

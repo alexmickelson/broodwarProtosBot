@@ -2,13 +2,15 @@ mod bot;
 mod state;
 mod web_server;
 mod utils {
-  pub mod build_buildings_utils;
-  pub mod build_location_utils;
-  pub mod build_manager;
-  pub mod worker_management;
   pub mod debug_utils;
-  pub mod base_location_utils;
   pub mod military_management;
+  pub mod worker_management;
+  pub mod build_order {
+    pub mod base_location_utils;
+    pub mod build_buildings_utils;
+    pub mod build_location_utils;
+    pub mod build_manager;
+  }
 }
 
 use bot::ProtosBot;

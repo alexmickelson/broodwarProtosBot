@@ -1,7 +1,8 @@
 use crate::{
   state::game_state::GameState,
   utils::{
-    build_location_utils, build_manager, debug_utils, military_management, worker_management,
+    build_order::{build_location_utils, build_manager},
+    debug_utils, military_management, worker_management,
   },
 };
 use rsbwapi::*;
@@ -64,7 +65,10 @@ impl AiModule for ProtosBot {
       .get(locked_state.current_stage_index)
       .map(|s| s.name.clone())
       .unwrap_or_else(|| "Unknown".to_string());
-    let upgrade_status = if let Some(stage) = locked_state.build_stages.get(locked_state.current_stage_index) {
+    let upgrade_status = if let Some(stage) = locked_state
+      .build_stages
+      .get(locked_state.current_stage_index)
+    {
       let mut map = std::collections::HashMap::new();
       for upgrade in &stage.desired_upgrades {
         // Example: just mark as "Pending"; you can enhance this logic

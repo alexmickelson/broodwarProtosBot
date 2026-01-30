@@ -36,11 +36,12 @@ pub fn get_build_stages() -> Vec<BuildStage> {
     BuildStage::new("Basic Production")
       .with_unit(UnitType::Terran_SCV, 12)
       .with_unit(UnitType::Terran_Barracks, 2),
-    BuildStage::new("Defense Bunker")
+    BuildStage::new("stage 3")
       .with_unit(UnitType::Terran_SCV, 17)
       .with_unit(UnitType::Terran_Supply_Depot, 2)
       .with_unit(UnitType::Terran_Barracks, 2)
       .with_unit(UnitType::Terran_Marine, 6)
+      .with_unit(UnitType::Terran_Command_Center, 2)
       .with_unit(UnitType::Terran_Refinery, 1),
       BuildStage::new("Mid Game")
       .with_unit(UnitType::Terran_Factory, 1)
@@ -48,9 +49,7 @@ pub fn get_build_stages() -> Vec<BuildStage> {
       .with_unit(UnitType::Terran_SCV, 20)
       .with_unit(UnitType::Terran_Engineering_Bay, 1)
       .with_unit(UnitType::Terran_Supply_Depot, 2)
-      .with_unit(UnitType::Terran_Command_Center, 2)
       .with_unit(UnitType::Terran_Barracks, 2)
-      // .with_unit(UnitType::Terran_Academy, 1)
       // .with_upgrade(UpgradeType::Terran_Infantry_Weapons)
       .with_unit(UnitType::Terran_Marine, 15),
     BuildStage::new("next step")
@@ -59,6 +58,7 @@ pub fn get_build_stages() -> Vec<BuildStage> {
       .with_unit(UnitType::Terran_Missile_Turret, 2)
       .with_unit(UnitType::Terran_Marine, 20)
       .with_unit(UnitType::Terran_Vulture, 4)
+      .with_unit(UnitType::Terran_Academy, 1)
       .with_unit(UnitType::Terran_Medic, 4)
       .with_unit(UnitType::Terran_SCV, 30)
       // .with_unit(UnitType::Terran_Firebat, 10)

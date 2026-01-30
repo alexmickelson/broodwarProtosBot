@@ -1,5 +1,5 @@
 use crate::state::game_state::GameState;
-pub use crate::utils::base_location_utils::get_base_locations;
+pub use crate::utils::build_order::base_location_utils::get_base_locations;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use rsbwapi::{Game, Player, TilePosition, Unit, UnitType};

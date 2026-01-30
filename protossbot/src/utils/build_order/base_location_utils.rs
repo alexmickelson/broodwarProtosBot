@@ -1,6 +1,6 @@
 use crate::{
   state::game_state::{BaseLocation, CheckedPosition},
-  utils::build_buildings_utils,
+  utils::build_order::build_buildings_utils,
 };
 use rsbwapi::{Game, TilePosition, Unit, UnitType};
 

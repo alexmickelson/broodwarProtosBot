@@ -1,3 +1,7 @@
+// Returns the Manhattan distance between two positions
+fn position_distance(a: ScaledPosition<1>, b: ScaledPosition<1>) -> i32 {
+  (a.x - b.x).abs() + (a.y - b.y).abs()
+}
 use crate::state::game_state::{GameState, Squad};
 use rsbwapi::*;
 
@@ -60,6 +64,7 @@ pub fn military_onframe(game: &Game, player: &Player, state: &mut GameState) {
 }
 
 fn defend_base(game: &Game, player: &Player, military_units: &[Unit]) {
+  // game.get_
   for unit in military_units {
     if unit.get_type() == UnitType::Terran_Medic {
       continue;
@@ -67,7 +72,9 @@ fn defend_base(game: &Game, player: &Player, military_units: &[Unit]) {
     let enemy_units = game
       .get_all_units()
       .iter()
-      .filter(|u| u.get_player().get_id() != player.get_id() && u.is_visible())
+      .filter(|u| {
+        u.get_player().get_id() != player.get_id() && !u.get_player().is_neutral()
+      })
       .cloned()
       .collect::<Vec<Unit>>();
     if let Some(closest_enemy) = enemy_units.iter().cloned().min_by_key(|e| {
@@ -76,11 +83,28 @@ fn defend_base(game: &Game, player: &Player, military_units: &[Unit]) {
       dx + dy
     }) {
       // If already attacking this enemy, skip
-      if matches!(unit.get_order(), Order::AttackUnit) {
-        if let Some(order_target) = unit.get_order_target() {
-          if order_target.get_id() == closest_enemy.get_id() {
-            continue;
-          }
+      let unit_order = unit.get_order();
+
+      if unit_order == Order::AttackUnit {
+        let Some(order_target) = unit.get_order_target() else {
+          continue;
+        };
+
+        if order_target.get_id() == closest_enemy.get_id() {
+          continue;
+        }
+
+        if position_distance(closest_enemy.get_position(), order_target.get_position()) < (32 * 1) {
+          continue;
+        }
+      }
+
+      if unit_order == Order::AttackMove {
+        let Some(order_target_pos) = unit.get_order_target_position() else {
+          continue;
+        };
+        if position_distance(closest_enemy.get_position(), order_target_pos) < (32 * 1) {
+          continue;
         }
       }
       let enemy_pos = closest_enemy.get_position();
@@ -114,6 +138,15 @@ fn defend_base(game: &Game, player: &Player, military_units: &[Unit]) {
                 unit.get_id(),
                 enemy_pos
               );
+            }
+            Err(Error::Unable_To_Hit) => {
+              // Walk to the closest enemy's position
+              println!(
+                "Unit {} unable to hit enemy at {:?} (Unable_To_Hit), moving to closest enemy position",
+                unit.get_id(),
+                enemy_pos
+              );
+              let _ = unit.move_(enemy_pos);
             }
             Err(e) => {
               println!(
