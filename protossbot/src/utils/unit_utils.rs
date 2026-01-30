@@ -27,3 +27,12 @@ pub fn count_units_of_type(player: &Player, unit_type: UnitType) -> i32 {
     .filter(|u| u.get_type() == unit_type)
     .count() as i32
 }
+
+
+pub fn count_completed_units_of_type(player: &Player, unit_type: UnitType) -> i32 {
+  player
+    .get_units()
+    .iter()
+    .filter(|u| u.get_type() == unit_type && u.is_completed())
+    .count() as i32
+}

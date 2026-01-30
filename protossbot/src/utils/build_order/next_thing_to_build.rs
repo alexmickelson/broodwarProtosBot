@@ -184,13 +184,22 @@ fn get_unit_status(
       gas_short,
     };
   }
-  // Check if we have the required tech for the unit
-  let required_tech = unit_type.required_tech();
-  if required_tech != TechType::None {
-    if !player.has_researched(required_tech) {
+  
+  if unit_type.required_tech() != TechType::None {
+    if !player.has_researched(unit_type.required_tech()) {
       return WantToBuildStatus::NoBuilderAvailable;
     }
   }
+
+  let has_all_required_buildings = unit_type
+    .required_units()
+    .iter()
+    .all(|(req_unit, count)| unit_utils::count_completed_units_of_type(player, *req_unit) >= *count);
+  
+  if !has_all_required_buildings {
+    return WantToBuildStatus::NoBuilderAvailable;
+  }
+
   if unit_utils::find_builder_for_unit(player, *unit_type, state).is_none() {
     return WantToBuildStatus::NoBuilderAvailable;
   }
