@@ -70,29 +70,27 @@ fn defend_base(game: &Game, player: &Player, military_units: &[Unit]) {
       .filter(|u| u.get_player().get_id() != player.get_id() && u.is_visible())
       .cloned()
       .collect::<Vec<Unit>>();
-    if let Some(closest_enemy) = enemy_units.iter().min_by_key(|e| {
+    if let Some(closest_enemy) = enemy_units.iter().cloned().min_by_key(|e| {
       let dx = (unit.get_position().x - e.get_position().x).abs();
       let dy = (unit.get_position().y - e.get_position().y).abs();
       dx + dy
     }) {
-      let enemy_pos = closest_enemy.get_position();
       // If already attacking this enemy, skip
-      if matches!(unit.get_order(), Order::AttackUnit | Order::AttackMove) {
+      if matches!(unit.get_order(), Order::AttackUnit) {
         if let Some(order_target) = unit.get_order_target() {
           if order_target.get_id() == closest_enemy.get_id() {
             continue;
           }
         }
       }
-      // Try to attack the enemy directly
-      let can = unit.can_attack_unit(closest_enemy);
+      let enemy_pos = closest_enemy.get_position();
       println!(
         "Unit {} was {:?} now attacking due to nearby enemies",
         unit.get_id(),
         unit.get_order()
       );
-      match can {
-        Ok(true) => match unit.attack(closest_enemy) {
+      match unit.is_in_weapon_range(&closest_enemy) {
+        true => match unit.attack(&closest_enemy) {
           Ok(true) => {}
           Ok(false) => {
             let _ = unit.move_(enemy_pos);
@@ -106,9 +104,26 @@ fn defend_base(game: &Game, player: &Player, military_units: &[Unit]) {
             );
           }
         },
-        _ => {
+        false => {
           // If can't attack directly, attack the position of the nearest unit
-          let _ = unit.attack(enemy_pos);
+          match unit.attack(enemy_pos) {
+            Ok(true) => {}
+            Ok(false) => {
+              println!(
+                "Unit {} failed to attack move to enemy position {:?}",
+                unit.get_id(),
+                enemy_pos
+              );
+            }
+            Err(e) => {
+              println!(
+                "Failed to order unit {} to attack move to enemy position {:?}: {:?}",
+                unit.get_id(),
+                enemy_pos,
+                e
+              );
+            }
+          }
         }
       }
     }

@@ -40,7 +40,7 @@ pub fn get_build_stages() -> Vec<BuildStage> {
       .with_unit(UnitType::Terran_SCV, 17)
       .with_unit(UnitType::Terran_Supply_Depot, 2)
       .with_unit(UnitType::Terran_Barracks, 2)
-      .with_unit(UnitType::Terran_Marine, 8)
+      .with_unit(UnitType::Terran_Marine, 6)
       .with_unit(UnitType::Terran_Refinery, 1),
       BuildStage::new("Mid Game")
       .with_unit(UnitType::Terran_Factory, 1)

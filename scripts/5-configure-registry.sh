@@ -7,13 +7,13 @@ echo "========================================"
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 export WINEPREFIX="$PROJECT_DIR/.wine"
 export WINEARCH=win64
 export DISPLAY=:0
 export WINEDLLOVERRIDES="mscoree,mshtml="
 export WINEDEBUG=-all
+PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 
 INSTALL_DIR="$PROJECT_DIR/starcraft"
