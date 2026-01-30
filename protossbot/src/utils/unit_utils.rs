@@ -15,7 +15,7 @@ pub fn find_builder_for_unit(
       u.get_type() == builder_type
         && !u.is_constructing()
         && !u.is_training()
-        && (u.is_idle() || u.is_gathering_minerals() || u.is_gathering_gas())
+        && (u.is_idle() || u.is_gathering_minerals())
     })
     .cloned()
 }

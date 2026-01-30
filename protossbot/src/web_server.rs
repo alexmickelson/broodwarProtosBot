@@ -10,7 +10,10 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tower_http::{cors::CorsLayer, services::ServeDir};
 
-use crate::state::game_state::{self, BuildHistoryEntry, BuildStatus};
+use crate::{
+  state::game_state::{self, BuildHistoryEntry, BuildStatus},
+  utils::build_order::next_thing_to_build::BuildStatusMap,
+};
 
 #[derive(Clone)]
 pub struct SharedGameSpeed {
@@ -37,8 +40,7 @@ impl SharedGameSpeed {
 pub struct BuildStatusData {
   pub stage_name: String,
   pub stage_index: usize,
-  pub item_status: HashMap<String, String>,
-  pub upgrade_status: HashMap<String, String>,
+  pub item_status: BuildStatusMap,
 }
 
 #[derive(Clone)]
@@ -53,18 +55,11 @@ impl SharedBuildStatus {
     }
   }
 
-  pub fn update(
-    &self,
-    stage_name: String,
-    stage_index: usize,
-    item_status: HashMap<String, String>,
-    upgrade_status: HashMap<String, String>,
-  ) {
+  pub fn update(&self, stage_name: String, stage_index: usize, item_status: BuildStatusMap) {
     let mut data = self.data.lock().unwrap();
     data.stage_name = stage_name;
     data.stage_index = stage_index;
     data.item_status = item_status;
-    data.upgrade_status = upgrade_status;
   }
 
   pub fn get(&self) -> BuildStatusData {
@@ -94,7 +89,6 @@ pub struct BuildStatusResponse {
   pub stage_name: String,
   pub stage_index: usize,
   pub items: Vec<BuildItemStatusInfo>,
-  pub upgrades: Vec<BuildUpgradeStatusInfo>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -150,18 +144,16 @@ async fn get_build_status(State(app_state): State<AppState>) -> Response {
   let items: Vec<BuildItemStatusInfo> = data
     .item_status
     .iter()
-    .map(|(unit_name, status)| BuildItemStatusInfo {
-      unit_name: unit_name.clone(),
-      status: status.clone(),
-    })
-    .collect();
-
-  let upgrades: Vec<BuildUpgradeStatusInfo> = data
-    .upgrade_status
-    .iter()
-    .map(|(upgrade_name, status)| BuildUpgradeStatusInfo {
-      upgrade_name: upgrade_name.clone(),
-      status: status.clone(),
+    .map(|(key, status)| BuildItemStatusInfo {
+      unit_name: match key {
+        crate::utils::build_order::next_thing_to_build::UnitOrUpgradeType::Unit(u) => {
+          u.name().to_string()
+        }
+        crate::utils::build_order::next_thing_to_build::UnitOrUpgradeType::Upgrade(up) => {
+          format!("Upgrade: {:?}", up)
+        }
+      },
+      status: format!("{:?}", status),
     })
     .collect();
 
@@ -169,7 +161,6 @@ async fn get_build_status(State(app_state): State<AppState>) -> Response {
     stage_name: data.stage_name,
     stage_index: data.stage_index,
     items,
-    upgrades,
   };
 
   (StatusCode::OK, Json(response)).into_response()

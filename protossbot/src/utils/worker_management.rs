@@ -47,7 +47,14 @@ fn prevent_too_many_gas_workers(
   for worker in &workers_mining_gas {
     let refinery_assigned = state.worker_refinery_assignments.get(&worker.get_id());
     if !refinery_assigned.is_some() {
-      assign_worker_to_mineral(game, player, worker, state);
+      let Some(mineral) = find_available_mineral(game, player, worker, state) else {
+        println!("No available mineral found for worker {}", worker.get_id());
+        return;
+      };
+
+      if worker.gather(&mineral).is_ok() {
+        println!("Assigned worker {} to mine from mineral", worker.get_id(),);
+      }
     }
   }
 }

@@ -1,13 +1,13 @@
 use rsbwapi::*;
 use std::collections::HashMap;
 
-use crate::state::build_stages::BuildStage;
+use crate::{state::build_stages::BuildStage, utils::build_order::next_thing_to_build::BuildStatusMap};
 
 pub struct GameState {
   pub unit_build_history: Vec<BuildHistoryEntry>,
   pub build_stages: Vec<BuildStage>,
   pub current_stage_index: usize,
-  pub stage_item_status: HashMap<String, String>,
+  pub stage_item_status: BuildStatusMap,
   pub base_locations: Vec<BaseLocation>,
   pub squads: Vec<Squad>,
   pub worker_refinery_assignments: HashMap<usize, usize>,
