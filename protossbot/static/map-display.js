@@ -1,20 +1,25 @@
+import {
+  TILE_SIZE,
+  setSvgElement,
+  setUnitsGroup,
+  setBaseLocationsGroup,
+  setContentGroup,
+  setViewBox,
+  setIsPanning,
+  setStartPoint,
+  viewBox,
+  isPanning,
+  startPoint,
+  svgElement,
+} from "./constants.js";
+import { renderMapTiles } from "./render-tiles.js";
+import { fetchUnits } from "./render-units.js";
+import { fetchBaseLocations } from "./render-base-locations.js";
+
 const mapContainer = document.getElementById("mapContainer");
 const mapLoading = document.getElementById("mapLoading");
 const refreshIntervalSlider = document.getElementById("refreshInterval");
 const intervalValueDisplay = document.getElementById("intervalValue");
-
-const TILE_SIZE = 4; // Display size for each tile position
-const PIXEL_TO_DISPLAY_SCALE = 0.125; // 1 pixel = 0.125 display pixels (32 pixels = 4 display pixels)
-
-let svgElement = null;
-let unitsGroup = null;
-let contentGroup = null;
-
-// Pan and zoom state
-let viewBox = { x: 0, y: 0, width: 0, height: 0 };
-let isPanning = false;
-let startPoint = { x: 0, y: 0 };
-let scale = 1;
 
 // Refresh interval state
 let refreshInterval =
@@ -27,8 +32,9 @@ async function fetchMapInfo() {
     if (response.ok) {
       const data = await response.json();
       renderMap(data);
-      // Start fetching units after map is loaded
+      // Start fetching units and base locations after map is loaded
       fetchUnits();
+      fetchBaseLocations();
       startRefreshInterval();
     } else {
       mapLoading.textContent = "Map data not available";
@@ -47,7 +53,10 @@ function startRefreshInterval() {
     clearInterval(refreshIntervalId);
   }
   // Start new interval
-  refreshIntervalId = setInterval(fetchUnits, refreshInterval);
+  refreshIntervalId = setInterval(() => {
+    fetchUnits();
+    fetchBaseLocations();
+  }, refreshInterval);
 }
 
 function updateRefreshInterval(newInterval) {
@@ -56,184 +65,47 @@ function updateRefreshInterval(newInterval) {
   startRefreshInterval();
 }
 
-async function fetchUnits() {
-  try {
-    const response = await fetch("http://127.0.0.1:3333/api/unit-info");
-    if (response.ok) {
-      const units = await response.json();
-      renderUnits(units);
-    }
-  } catch (error) {
-    console.error("Failed to fetch unit info:", error);
-  }
-}
-
 function renderMap(mapData) {
   const width = mapData.map_width * TILE_SIZE;
   const height = mapData.map_height * TILE_SIZE;
 
   // Create SVG element
-  svgElement = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svgElement.setAttribute("width", "100%");
-  svgElement.setAttribute("height", "600px");
-  svgElement.classList.add("map-svg");
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("width", "100%");
+  svg.setAttribute("height", "600px");
+  svg.classList.add("map-svg");
+  setSvgElement(svg);
 
   // Initialize viewBox
-  viewBox = { x: 0, y: 0, width: width, height: height };
+  setViewBox({ x: 0, y: 0, width: width, height: height });
   updateViewBox();
 
   // Create a group to hold all content (for transformations)
-  contentGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-  svgElement.appendChild(contentGroup);
+  const content = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  svg.appendChild(content);
+  setContentGroup(content);
 
-  // Create a map of tiles for quick lookup
-  const tileMap = new Map();
-  mapData.tiles.forEach((tile) => {
-    const key = `${tile.x},${tile.y}`;
-    tileMap.set(key, tile);
-  });
-
-  // Render all tiles
-  for (let y = 0; y < mapData.map_height; y++) {
-    for (let x = 0; x < mapData.map_width; x++) {
-      const key = `${x},${y}`;
-      const tile = tileMap.get(key);
-
-      const rect = document.createElementNS(
-        "http://www.w3.org/2000/svg",
-        "rect",
-      );
-      rect.setAttribute("x", x * TILE_SIZE);
-      rect.setAttribute("y", y * TILE_SIZE);
-      rect.setAttribute("width", TILE_SIZE);
-      rect.setAttribute("height", TILE_SIZE);
-
-      // Color based on walkability
-      if (tile && tile.is_walkable) {
-        rect.setAttribute("fill", "#666666"); // gray for walkable
-      } else {
-        rect.setAttribute("fill", "#000000"); // black for unwalkable
-      }
-
-      contentGroup.appendChild(rect);
-    }
-  }
+  // Render tiles
+  renderMapTiles(mapData, content);
 
   // Create a group for units (rendered on top)
-  unitsGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-  unitsGroup.setAttribute("id", "units");
-  contentGroup.appendChild(unitsGroup);
+  const units = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  units.setAttribute("id", "units");
+  content.appendChild(units);
+  setUnitsGroup(units);
+
+  // Create a group for base locations
+  const bases = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  bases.setAttribute("id", "baseLocations");
+  content.appendChild(bases);
+  setBaseLocationsGroup(bases);
 
   // Replace loading message with the SVG
   mapContainer.innerHTML = "";
-  mapContainer.appendChild(svgElement);
+  mapContainer.appendChild(svg);
 
   // Add interaction handlers
   setupInteractions();
-}
-
-function renderUnits(units) {
-  if (!unitsGroup) return;
-  // Create a set of current unit IDs
-  const currentUnitIds = new Set(units.map((unit) => unit.unit_id));
-
-  // Remove units that no longer exist
-  const existingElements = unitsGroup.querySelectorAll("[data-unit-id]");
-  existingElements.forEach((element) => {
-    const unitId = parseInt(element.getAttribute("data-unit-id"));
-    if (!currentUnitIds.has(unitId)) {
-      element.remove();
-    }
-  });
-
-  // Update or create units
-  let createdMinerals = 0;
-  let updatedMinerals = 0;
-  units.forEach((unit) => {
-    const unitId = unit.unit_id;
-    const x = unit.pixel_position.x * PIXEL_TO_DISPLAY_SCALE;
-    const y = unit.pixel_position.y * PIXEL_TO_DISPLAY_SCALE;
-    const width = unit.unit_width * PIXEL_TO_DISPLAY_SCALE;
-    const height = unit.unit_height * PIXEL_TO_DISPLAY_SCALE;
-
-    // Try to find existing elements for this unit
-    let line = unitsGroup.querySelector(`line[data-unit-id="${unitId}"]`);
-    let rect = unitsGroup.querySelector(`rect[data-unit-id="${unitId}"]`);
-
-    // Handle target line
-    if (unit.target_pixel_position) {
-      const targetX = unit.target_pixel_position.x * PIXEL_TO_DISPLAY_SCALE;
-      const targetY = unit.target_pixel_position.y * PIXEL_TO_DISPLAY_SCALE;
-
-      if (!line) {
-        line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-        line.setAttribute("data-unit-id", unitId);
-        line.classList.add("svg-unit-target-line");
-        unitsGroup.appendChild(line);
-      }
-
-      line.setAttribute("x1", x);
-      line.setAttribute("y1", y);
-      line.setAttribute("x2", targetX);
-      line.setAttribute("y2", targetY);
-    } else if (line) {
-      // Remove line if target no longer exists
-      line.remove();
-    }
-
-    // Handle unit rectangle
-    if (!rect) {
-      rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-      rect.setAttribute("data-unit-id", unitId);
-      rect.classList.add("svg-unit-rect");
-
-      // Add tooltip
-      const title = document.createElementNS(
-        "http://www.w3.org/2000/svg",
-        "title",
-      );
-      rect.appendChild(title);
-
-      unitsGroup.appendChild(rect);
-    }
-
-    // Update rect attributes
-    rect.setAttribute("x", x - width / 2);
-    rect.setAttribute("y", y - height / 2);
-    rect.setAttribute("width", width);
-    rect.setAttribute("height", height);
-    rect.setAttribute("fill", getUnitColor(unit.player_id, unit.player_name));
-
-    // Update tooltip
-    const title = rect.querySelector("title");
-    if (title) {
-      title.textContent = `${unit.unit_type}\nID: ${unit.unit_id}\nPlayer: ${unit.player_name || "Unknown"}`;
-    }
-  });
-}
-
-function getUnitColor(playerId, playerName) {
-  // Check if player is Neutral
-  if (playerName === "Neutral") {
-    return "#344234";
-  }
-
-  // Color units based on player ID
-  const colors = [
-    "#C26565",
-    "#5E5EC1",
-    "#366C36",
-    "#8F8F2B",
-    "#743B74",
-    "#3B6E6E",
-    "#836547",
-    "#3B2336",
-  ];
-
-  if (playerId !== null && playerId >= 0 && playerId < colors.length) {
-    return colors[playerId];
-  }
-  return "#888888"; // Gray for unknown/neutral
 }
 
 function setupInteractions() {
@@ -259,24 +131,26 @@ function setupInteractions() {
     const newHeight = viewBox.height * zoomFactor;
 
     // Adjust position to zoom towards mouse
-    viewBox.x = svgX - (mouseX / rect.width) * newWidth;
-    viewBox.y = svgY - (mouseY / rect.height) * newHeight;
-    viewBox.width = newWidth;
-    viewBox.height = newHeight;
+    setViewBox({
+      x: svgX - (mouseX / rect.width) * newWidth,
+      y: svgY - (mouseY / rect.height) * newHeight,
+      width: newWidth,
+      height: newHeight,
+    });
 
     updateViewBox();
   });
 
   // Pan with mouse drag
   svgElement.addEventListener("mousedown", (e) => {
-    isPanning = true;
+    setIsPanning(true);
     svgElement.classList.add("panning");
 
     const rect = svgElement.getBoundingClientRect();
-    startPoint = {
+    setStartPoint({
       x: e.clientX - rect.left,
       y: e.clientY - rect.top,
-    };
+    });
   });
 
   svgElement.addEventListener("mousemove", (e) => {
@@ -289,21 +163,25 @@ function setupInteractions() {
     const dx = (startPoint.x - currentX) * (viewBox.width / rect.width);
     const dy = (startPoint.y - currentY) * (viewBox.height / rect.height);
 
-    viewBox.x += dx;
-    viewBox.y += dy;
+    setViewBox({
+      x: viewBox.x + dx,
+      y: viewBox.y + dy,
+      width: viewBox.width,
+      height: viewBox.height,
+    });
 
-    startPoint = { x: currentX, y: currentY };
+    setStartPoint({ x: currentX, y: currentY });
 
     updateViewBox();
   });
 
   svgElement.addEventListener("mouseup", () => {
-    isPanning = false;
+    setIsPanning(false);
     svgElement.classList.remove("panning");
   });
 
   svgElement.addEventListener("mouseleave", () => {
-    isPanning = false;
+    setIsPanning(false);
     svgElement.classList.remove("panning");
   });
 }

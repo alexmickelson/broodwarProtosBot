@@ -4,6 +4,7 @@ mod state {
   pub mod game_state;
 }
 pub mod webserver {
+  pub mod base_locations;
   pub mod build_history;
   pub mod build_status;
   pub mod frame_stats;

@@ -1,7 +1,7 @@
 use crate::{
   state::game_state::GameState,
   utils::{
-    build_order::{build_location_utils, build_manager, next_thing_to_build::BuildStatusMap},
+    build_order::{base_location_utils, build_location_utils, build_manager, next_thing_to_build::BuildStatusMap},
     debug_utils, map_information, military_management, worker_management,
   },
 };
@@ -9,15 +9,6 @@ use rsbwapi::*;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
-fn draw_unit_ids(game: &Game) {
-  for unit in game.get_all_units() {
-    if unit.exists() {
-      let pos = unit.get_position();
-      let unit_id = unit.get_id();
-      game.draw_text_map(pos, &format!("{}", unit_id));
-    }
-  }
-}
 
 impl AiModule for ProtosBot {
   fn on_start(&mut self, game: &Game) {
@@ -36,7 +27,7 @@ impl AiModule for ProtosBot {
       return;
     };
 
-    locked_state.base_locations = build_location_utils::get_base_locations(game, &player);
+    locked_state.base_locations = base_location_utils::get_base_locations(game, &player);
     locked_state.map_information = Some(map_information::get_map_information_from_game(game));
 
     println!("Game started on map: {}", game.map_file_name());
@@ -140,4 +131,14 @@ fn update_frame_timing(state: &mut GameState, frame_start: Instant) {
   state
     .recent_frame_times_ns
     .push_back(frame_duration.as_nanos());
+}
+
+fn draw_unit_ids(game: &Game) {
+  for unit in game.get_all_units() {
+    if unit.exists() {
+      let pos = unit.get_position();
+      let unit_id = unit.get_id();
+      game.draw_text_map(pos, &format!("{}", unit_id));
+    }
+  }
 }

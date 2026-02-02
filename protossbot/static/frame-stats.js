@@ -12,7 +12,7 @@ async function fetchFrameStats() {
   } catch (error) {
     console.error("Error fetching frame stats:", error);
     document.getElementById("frameStatsContent").innerHTML =
-      '<div style="color: #f87171; padding: 10px;">Error loading frame stats</div>';
+      '<div style="color: var(--color-error); padding: 10px;">Error loading frame stats</div>';
   }
 }
 

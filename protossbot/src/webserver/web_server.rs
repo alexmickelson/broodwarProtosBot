@@ -7,7 +7,9 @@ use tower_http::{cors::CorsLayer, services::ServeDir};
 
 use crate::state::game_state;
 
-use super::{build_history, build_status, frame_stats, game_speed, map_info, unit_info};
+use super::{
+  base_locations, build_history, build_status, frame_stats, game_speed, map_info, unit_info,
+};
 
 pub use build_status::SharedBuildStatus;
 pub use game_speed::SharedGameSpeed;
@@ -30,6 +32,10 @@ pub async fn start_web_server(
     .route("/api/build-history", get(build_history::get_build_history))
     .route("/api/map-info", get(map_info::get_map_info))
     .route("/api/unit-info", get(unit_info::get_unit_info))
+    .route(
+      "/api/base-locations",
+      get(base_locations::get_base_locations),
+    )
     .route("/api/frame-stats", get(frame_stats::get_frame_stats))
     .with_state(game_state)
     .layer(cors)
