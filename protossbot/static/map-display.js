@@ -61,7 +61,6 @@ async function fetchUnits() {
     const response = await fetch("http://127.0.0.1:3333/api/unit-info");
     if (response.ok) {
       const units = await response.json();
-      console.log(units);
       renderUnits(units);
     }
   } catch (error) {
@@ -169,6 +168,7 @@ function renderUnits(units) {
       if (!line) {
         line = document.createElementNS("http://www.w3.org/2000/svg", "line");
         line.setAttribute("data-unit-id", unitId);
+        line.classList.add("svg-unit-target-line");
         unitsGroup.appendChild(line);
       }
 
@@ -176,9 +176,6 @@ function renderUnits(units) {
       line.setAttribute("y1", y);
       line.setAttribute("x2", targetX);
       line.setAttribute("y2", targetY);
-      line.setAttribute("stroke", "#888888");
-      line.setAttribute("stroke-width", "0.5");
-      line.setAttribute("opacity", "0.6");
     } else if (line) {
       // Remove line if target no longer exists
       line.remove();
@@ -188,6 +185,7 @@ function renderUnits(units) {
     if (!rect) {
       rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
       rect.setAttribute("data-unit-id", unitId);
+      rect.classList.add("svg-unit-rect");
 
       // Add tooltip
       const title = document.createElementNS(
@@ -205,9 +203,6 @@ function renderUnits(units) {
     rect.setAttribute("width", width);
     rect.setAttribute("height", height);
     rect.setAttribute("fill", getUnitColor(unit.player_id, unit.player_name));
-    rect.setAttribute("stroke", "#ffffff");
-    rect.setAttribute("stroke-width", "0.5");
-    rect.setAttribute("opacity", "0.8");
 
     // Update tooltip
     const title = rect.querySelector("title");
@@ -215,18 +210,12 @@ function renderUnits(units) {
       title.textContent = `${unit.unit_type}\nID: ${unit.unit_id}\nPlayer: ${unit.player_name || "Unknown"}`;
     }
   });
-
-  const renderedRects = unitsGroup.querySelectorAll("rect[data-unit-id]").length;
-  const mineralRects = Array.from(unitsGroup.querySelectorAll("rect[data-unit-id]")).filter(r => {
-    const title = r.querySelector("title");
-    return title && title.textContent.includes("Mineral_Field");
-  }).length;
 }
 
 function getUnitColor(playerId, playerName) {
   // Check if player is Neutral
   if (playerName === "Neutral") {
-    return "#76E176"; // Green for Neutral
+    return "#344234";
   }
 
   // Color units based on player ID
