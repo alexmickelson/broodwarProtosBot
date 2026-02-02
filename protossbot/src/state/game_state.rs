@@ -1,7 +1,10 @@
 use rsbwapi::*;
 use std::collections::HashMap;
 
-use crate::{state::build_stages::BuildStage, utils::build_order::next_thing_to_build::BuildStatusMap};
+use crate::{
+  state::build_stages::BuildStage,
+  utils::build_order::{base_location_utils::BaseLocation, next_thing_to_build::BuildStatusMap},
+};
 
 pub struct GameState {
   pub unit_build_history: Vec<BuildHistoryEntry>,
@@ -11,6 +14,8 @@ pub struct GameState {
   pub base_locations: Vec<BaseLocation>,
   pub squads: Vec<Squad>,
   pub worker_refinery_assignments: HashMap<usize, usize>,
+  pub map_information: Option<MapInformation>,
+
 }
 
 impl Default for GameState {
@@ -23,6 +28,7 @@ impl Default for GameState {
       base_locations: Vec::new(),
       squads: Vec::new(),
       worker_refinery_assignments: HashMap::new(),
+      map_information: None,
     }
   }
 }
@@ -43,15 +49,26 @@ pub struct BuildHistoryEntry {
 }
 
 #[derive(Clone, Debug)]
+pub struct TileDisplayInformation {
+  pub is_walkable: bool,
+  pub is_buildable: bool,
+}
+
+pub type MapTileInformation = HashMap<rsbwapi::TilePosition, TileDisplayInformation>;
+
+
+#[derive(Clone, Debug)]
+pub struct MapInformation {
+  pub map_width: i32,
+  pub map_height: i32,
+  pub tile_information: MapTileInformation,
+}
+
+
+#[derive(Clone, Debug)]
 pub struct CheckedPosition {
   pub tile_position: TilePosition,
   pub is_valid: bool,
-}
-
-#[derive(Clone, Debug)]
-pub struct BaseLocation {
-  pub position: TilePosition,
-  pub checked_positions: Vec<CheckedPosition>,
 }
 
 #[derive(Clone, Debug)]

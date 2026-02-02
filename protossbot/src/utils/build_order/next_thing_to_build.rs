@@ -92,7 +92,7 @@ fn need_more_supply(_game: &Game, player: &Player, _state: &GameState) -> bool {
     .count() as i32;
 
   let supply_ratio = supply_used as f32 / (supply_total + supply_depots_in_progress * 8) as f32;
-  return supply_ratio >= 0.85 || (supply_total - supply_used) <= 1;
+  return supply_ratio >= 0.8 || (supply_total - supply_used) <= 1;
 }
 
 pub fn get_status_for_stage_items(

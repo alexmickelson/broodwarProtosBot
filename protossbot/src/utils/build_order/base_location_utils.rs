@@ -1,8 +1,15 @@
 use crate::{
-  state::game_state::{BaseLocation, CheckedPosition},
-  utils::build_order::build_buildings_utils,
+  state::game_state::CheckedPosition,
+  utils::build_order::{build_buildings_utils, path_utils},
 };
 use rsbwapi::{Game, TilePosition, Unit, UnitType};
+
+#[derive(Clone, Debug)]
+pub struct BaseLocation {
+  pub position: TilePosition,
+  pub checked_positions: Vec<CheckedPosition>,
+  pub path_to_location: Vec<TilePosition>,
+}
 
 pub fn get_base_locations(game: &Game, player: &rsbwapi::Player) -> Vec<BaseLocation> {
   let clusters = get_resource_clusters(game);
@@ -15,19 +22,24 @@ pub fn get_base_locations(game: &Game, player: &rsbwapi::Player) -> Vec<BaseLoca
     return Vec::new();
   };
 
-  base_positions.sort_by(|a, b| {
-    let start_pos = player_start_location;
-    let dist_a = ((a.x - start_pos.x).pow(2) + (a.y - start_pos.y).pow(2)) as i32;
-    let dist_b = ((b.x - start_pos.x).pow(2) + (b.y - start_pos.y).pow(2)) as i32;
-    dist_a.cmp(&dist_b)
-  });
+  let Some(base_paths) =
+    path_utils::get_paths_between(game, player_start_location, &base_positions)
+  else {
+    return Vec::new();
+  };
+
+  // The paths are already in walkable order (closest first)
+  // Extract destinations from the paths to get the correct ordering
+  base_positions = base_paths
+    .iter()
+    .filter_map(|path| path.last().copied())
+    .collect();
 
   let mut result = Vec::new();
-  for base_pos in base_positions {
+  for (i, base_pos) in base_positions.iter().enumerate() {
     let mut checked_positions = Vec::new();
     // Example: check a 15x15 tile area around the base
     let radius = 3;
-
 
     for dx in -radius..=radius {
       for dy in -radius..=radius {
@@ -46,8 +58,9 @@ pub fn get_base_locations(game: &Game, player: &rsbwapi::Player) -> Vec<BaseLoca
       }
     }
     result.push(BaseLocation {
-      position: base_pos,
+      position: *base_pos,
       checked_positions,
+      path_to_location: base_paths.get(i).cloned().unwrap_or_default(),
     });
   }
   result

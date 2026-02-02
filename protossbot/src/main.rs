@@ -1,24 +1,37 @@
 mod bot;
-mod state;
-mod web_server;
-mod utils {
+mod state {
+  pub mod build_stages;
+  pub mod game_state;
+}
+pub mod webserver {
+  pub mod build_history;
+  pub mod build_status;
+  pub mod game_speed;
+  pub mod web_server;
+
+  pub use build_status::SharedBuildStatus;
+  pub use game_speed::SharedGameSpeed;
+  pub use web_server::start_web_server;
+}
+pub mod utils {
   pub mod debug_utils;
   pub mod military_management;
-  pub mod worker_management;
   pub mod unit_utils;
+  pub mod worker_management;
   pub mod build_order {
     pub mod base_location_utils;
     pub mod build_buildings_utils;
     pub mod build_location_utils;
-    pub mod next_thing_to_build;
     pub mod build_manager;
+    pub mod next_thing_to_build;
+    pub mod path_utils;
   }
 }
 
 use bot::ProtosBot;
 use state::game_state::GameState;
 use std::sync::{Arc, Mutex};
-use web_server::{SharedBuildStatus, SharedGameSpeed};
+use webserver::{start_web_server, SharedBuildStatus, SharedGameSpeed};
 
 fn main() {
   println!("Starting RustBot...");
@@ -33,7 +46,7 @@ fn main() {
   let game_state_for_thread = game_state.clone();
   std::thread::spawn(move || {
     let runtime = tokio::runtime::Runtime::new().unwrap();
-    runtime.block_on(web_server::start_web_server(
+    runtime.block_on(start_web_server(
       shared_speed_clone,
       build_status_clone,
       game_state_for_thread,

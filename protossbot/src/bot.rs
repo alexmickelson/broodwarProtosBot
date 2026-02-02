@@ -65,11 +65,11 @@ impl AiModule for ProtosBot {
       .get(locked_state.current_stage_index)
       .map(|s| s.name.clone())
       .unwrap_or_else(|| "Unknown".to_string());
-    
+
     self.build_status.update(
       stage_name,
       locked_state.current_stage_index,
-      locked_state.stage_item_status.clone()
+      locked_state.stage_item_status.clone(),
     );
 
     military_management::military_onframe(game, &player, &mut locked_state);
@@ -105,15 +105,15 @@ impl AiModule for ProtosBot {
 
 pub struct ProtosBot {
   game_state: Arc<Mutex<GameState>>,
-  shared_speed: crate::web_server::SharedGameSpeed,
-  build_status: crate::web_server::SharedBuildStatus,
+  shared_speed: crate::webserver::SharedGameSpeed,
+  build_status: crate::webserver::SharedBuildStatus,
 }
 
 impl ProtosBot {
   pub fn new(
     game_state: Arc<Mutex<GameState>>,
-    shared_speed: crate::web_server::SharedGameSpeed,
-    build_status: crate::web_server::SharedBuildStatus,
+    shared_speed: crate::webserver::SharedGameSpeed,
+    build_status: crate::webserver::SharedBuildStatus,
   ) -> Self {
     Self {
       game_state,
