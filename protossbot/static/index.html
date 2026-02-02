@@ -207,6 +207,11 @@
         font-style: italic;
       }
 
+      .frame-stats-section {
+        margin-top: 30px;
+        padding-top: 30px;
+        border-top: 2px solid #333;
+      }
 
       .frame-stats-section h2 {
         color: #d4af37;
@@ -217,6 +222,82 @@
       #frameStatsContent {
         color: #fff;
         text-align: center;
+      }
+
+      .map-display-section {
+        width: 100%;
+        max-width: 1200px;
+      }
+
+      .map-display-title {
+        color: #d4af37;
+        font-size: 20px;
+        margin-bottom: 15px;
+      }
+
+      .refresh-control {
+        margin-bottom: 15px;
+        padding: 10px;
+        background: #2d2d2d;
+        border-radius: 8px;
+        border: 1px solid #444;
+      }
+
+      .refresh-label {
+        color: #d4af37;
+        font-size: 14px;
+        display: block;
+        margin-bottom: 8px;
+      }
+
+      .interval-value {
+        color: #fff;
+      }
+
+      .refresh-slider {
+        width: 100%;
+        cursor: pointer;
+      }
+
+      .slider-labels {
+        display: flex;
+        justify-content: space-between;
+        font-size: 11px;
+        color: #999;
+        margin-top: 4px;
+      }
+
+      .map-container {
+        overflow: auto;
+        background: #1e1e1e;
+        border: 1px solid #444;
+        border-radius: 8px;
+      }
+
+      .map-loading {
+        padding: 20px;
+        text-align: center;
+        color: #999;
+      }
+
+      .map-svg {
+        display: block;
+        border: 1px solid #444;
+        cursor: grab;
+      }
+
+      .map-svg.panning {
+        cursor: grabbing;
+      }
+
+      .map-loading.error {
+        color: #f87171;
+      }
+
+      .upgrade-section-title {
+        color: #4ade80;
+        font-size: 16px;
+        margin: 18px 0 8px 0;
       }
     </style>
   </head>
@@ -250,9 +331,7 @@
             <li class="build-item">Connecting to bot...</li>
           </ul>
           <div id="upgradeSection">
-            <h3 style="color: #4ade80; font-size: 16px; margin: 18px 0 8px 0">
-              Upgrades
-            </h3>
+            <h3 class="upgrade-section-title">Upgrades</h3>
             <ul class="build-items" id="upgradeItems">
               <li class="build-item">Loading upgrades...</li>
             </ul>
@@ -274,29 +353,11 @@
       </section>
     </div>
     <section class="map-display-section">
-      <h2 style="color: #d4af37; font-size: 20px; margin-bottom: 15px">
-        Map Display
-      </h2>
-      <div
-        style="
-          margin-bottom: 15px;
-          padding: 10px;
-          background: #2d2d2d;
-          border-radius: 8px;
-          border: 1px solid #444;
-        "
-      >
-        <label
-          for="refreshInterval"
-          style="
-            color: #d4af37;
-            font-size: 14px;
-            display: block;
-            margin-bottom: 8px;
-          "
-        >
+      <h2 class="map-display-title">Map Display</h2>
+      <div class="refresh-control">
+        <label for="refreshInterval" class="refresh-label">
           Unit Refresh Interval:
-          <span id="intervalValue" style="color: #fff">1000</span>ms
+          <span id="intervalValue" class="interval-value">1000</span>ms
         </label>
         <input
           type="range"
@@ -305,36 +366,15 @@
           max="5000"
           step="100"
           value="1000"
-          style="width: 100%; cursor: pointer"
+          class="refresh-slider"
         />
-        <div
-          style="
-            display: flex;
-            justify-content: space-between;
-            font-size: 11px;
-            color: #999;
-            margin-top: 4px;
-          "
-        >
+        <div class="slider-labels">
           <span>100ms (Fast)</span>
           <span>5000ms (Slow)</span>
         </div>
       </div>
-      <div
-        id="mapContainer"
-        style="
-          overflow: auto;
-          background: #1e1e1e;
-          border: 1px solid #444;
-          border-radius: 8px;
-        "
-      >
-        <div
-          id="mapLoading"
-          style="padding: 20px; text-align: center; color: #999"
-        >
-          Loading map data...
-        </div>
+      <div id="mapContainer" class="map-container">
+        <div id="mapLoading" class="map-loading">Loading map data...</div>
       </div>
     </section>
 

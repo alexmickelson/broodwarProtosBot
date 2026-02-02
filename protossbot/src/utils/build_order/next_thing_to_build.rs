@@ -30,7 +30,7 @@ pub fn get_next_thing_to_build(
 ) -> Option<NextBuildItem> {
   let current_stage = state.build_stages.get(state.current_stage_index)?;
   if need_more_supply(game, player, state) {
-    println!("Decided to build supply depot next");
+    game.draw_text_screen((0, 30), "Decided to build supply depot next");
     return Some(NextBuildItem::Unit(UnitType::Terran_Supply_Depot));
   }
   let status_map = get_status_for_stage_items(game, player, state);
@@ -184,18 +184,17 @@ fn get_unit_status(
       gas_short,
     };
   }
-  
+
   if unit_type.required_tech() != TechType::None {
     if !player.has_researched(unit_type.required_tech()) {
       return WantToBuildStatus::NoBuilderAvailable;
     }
   }
 
-  let has_all_required_buildings = unit_type
-    .required_units()
-    .iter()
-    .all(|(req_unit, count)| unit_utils::count_completed_units_of_type(player, *req_unit) >= *count);
-  
+  let has_all_required_buildings = unit_type.required_units().iter().all(|(req_unit, count)| {
+    unit_utils::count_completed_units_of_type(player, *req_unit) >= *count
+  });
+
   if !has_all_required_buildings {
     return WantToBuildStatus::NoBuilderAvailable;
   }

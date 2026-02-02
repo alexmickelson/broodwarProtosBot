@@ -32,12 +32,12 @@ async function fetchMapInfo() {
       startRefreshInterval();
     } else {
       mapLoading.textContent = "Map data not available";
-      mapLoading.style.color = "#f87171";
+      mapLoading.classList.add("error");
     }
   } catch (error) {
     console.error("Failed to fetch map info:", error);
     mapLoading.textContent = "Error loading map data";
-    mapLoading.style.color = "#f87171";
+    mapLoading.classList.add("error");
   }
 }
 
@@ -60,8 +60,8 @@ async function fetchUnits() {
   try {
     const response = await fetch("http://127.0.0.1:3333/api/unit-info");
     if (response.ok) {
-      const data = await response.json();
-      renderUnits(data.units);
+      const units = await response.json();
+      renderUnits(units);
     }
   } catch (error) {
     console.error("Failed to fetch unit info:", error);
@@ -76,9 +76,7 @@ function renderMap(mapData) {
   svgElement = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svgElement.setAttribute("width", "100%");
   svgElement.setAttribute("height", "600px");
-  svgElement.style.display = "block";
-  svgElement.style.border = "1px solid #444";
-  svgElement.style.cursor = "grab";
+  svgElement.classList.add("map-svg");
 
   // Initialize viewBox
   viewBox = { x: 0, y: 0, width: width, height: height };
@@ -137,49 +135,102 @@ function renderMap(mapData) {
 function renderUnits(units) {
   if (!unitsGroup) return;
 
-  // Clear existing units
-  unitsGroup.innerHTML = "";
+  // Create a set of current unit IDs
+  const currentUnitIds = new Set(units.map((unit) => unit.unit_id));
 
-  // Render each unit
+  // Remove units that no longer exist
+  const existingElements = unitsGroup.querySelectorAll("[data-unit-id]");
+  existingElements.forEach((element) => {
+    const unitId = parseInt(element.getAttribute("data-unit-id"));
+    if (!currentUnitIds.has(unitId)) {
+      element.remove();
+    }
+  });
+
+  // Update or create units
   units.forEach((unit) => {
-    const x = unit.x * PIXEL_TO_DISPLAY_SCALE;
-    const y = unit.y * PIXEL_TO_DISPLAY_SCALE;
-    const width = unit.width * PIXEL_TO_DISPLAY_SCALE;
-    const height = unit.height * PIXEL_TO_DISPLAY_SCALE;
+    const unitId = unit.unit_id;
+    const x = unit.pixel_position.x * PIXEL_TO_DISPLAY_SCALE;
+    const y = unit.pixel_position.y * PIXEL_TO_DISPLAY_SCALE;
+    const width = unit.unit_width * PIXEL_TO_DISPLAY_SCALE;
+    const height = unit.unit_height * PIXEL_TO_DISPLAY_SCALE;
 
-    const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    // Try to find existing elements for this unit
+    let line = unitsGroup.querySelector(`line[data-unit-id="${unitId}"]`);
+    let rect = unitsGroup.querySelector(`rect[data-unit-id="${unitId}"]`);
+
+    // Handle target line
+    if (unit.target_pixel_position) {
+      const targetX = unit.target_pixel_position.x * PIXEL_TO_DISPLAY_SCALE;
+      const targetY = unit.target_pixel_position.y * PIXEL_TO_DISPLAY_SCALE;
+
+      if (!line) {
+        line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        line.setAttribute("data-unit-id", unitId);
+        unitsGroup.appendChild(line);
+      }
+
+      line.setAttribute("x1", x);
+      line.setAttribute("y1", y);
+      line.setAttribute("x2", targetX);
+      line.setAttribute("y2", targetY);
+      line.setAttribute("stroke", "#888888");
+      line.setAttribute("stroke-width", "0.5");
+      line.setAttribute("opacity", "0.6");
+    } else if (line) {
+      // Remove line if target no longer exists
+      line.remove();
+    }
+
+    // Handle unit rectangle
+    if (!rect) {
+      rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      rect.setAttribute("data-unit-id", unitId);
+
+      // Add tooltip
+      const title = document.createElementNS(
+        "http://www.w3.org/2000/svg",
+        "title",
+      );
+      rect.appendChild(title);
+
+      unitsGroup.appendChild(rect);
+    }
+
+    // Update rect attributes
     rect.setAttribute("x", x - width / 2);
     rect.setAttribute("y", y - height / 2);
     rect.setAttribute("width", width);
     rect.setAttribute("height", height);
-    rect.setAttribute("fill", getUnitColor(unit.player_id));
+    rect.setAttribute("fill", getUnitColor(unit.player_id, unit.player_name));
     rect.setAttribute("stroke", "#ffffff");
     rect.setAttribute("stroke-width", "0.5");
     rect.setAttribute("opacity", "0.8");
 
-    // Add tooltip
-    const title = document.createElementNS(
-      "http://www.w3.org/2000/svg",
-      "title",
-    );
-    title.textContent = `ID: ${unit.unit_id}\nPlayer: ${unit.player_name || "Unknown"}`;
-    rect.appendChild(title);
-
-    unitsGroup.appendChild(rect);
+    // Update tooltip
+    const title = rect.querySelector("title");
+    if (title) {
+      title.textContent = `${unit.unit_type}\nID: ${unit.unit_id}\nPlayer: ${unit.player_name || "Unknown"}`;
+    }
   });
 }
 
-function getUnitColor(playerId) {
+function getUnitColor(playerId, playerName) {
+  // Check if player is Neutral
+  if (playerName === "Neutral") {
+    return "#76E176"; // Green for Neutral
+  }
+
   // Color units based on player ID
   const colors = [
-    "#ff0000", // Red (Player 0)
-    "#0000ff", // Blue (Player 1)
-    "#00ff00", // Green (Player 2)
-    "#ffff00", // Yellow (Player 3)
-    "#ff00ff", // Purple (Player 4)
-    "#00ffff", // Cyan (Player 5)
-    "#ff8800", // Orange (Player 6)
-    "#ffffff", // White (Player 7)
+    "#C26565", 
+    "#5E5EC1", 
+    "#366C36", 
+    "#8F8F2B", 
+    "#743B74", 
+    "#3B6E6E", 
+    "#836547", 
+    "#3B2336", 
   ];
 
   if (playerId !== null && playerId >= 0 && playerId < colors.length) {
@@ -222,7 +273,7 @@ function setupInteractions() {
   // Pan with mouse drag
   svgElement.addEventListener("mousedown", (e) => {
     isPanning = true;
-    svgElement.style.cursor = "grabbing";
+    svgElement.classList.add("panning");
 
     const rect = svgElement.getBoundingClientRect();
     startPoint = {
@@ -251,12 +302,12 @@ function setupInteractions() {
 
   svgElement.addEventListener("mouseup", () => {
     isPanning = false;
-    svgElement.style.cursor = "grab";
+    svgElement.classList.remove("panning");
   });
 
   svgElement.addEventListener("mouseleave", () => {
     isPanning = false;
-    svgElement.style.cursor = "grab";
+    svgElement.classList.remove("panning");
   });
 }
 

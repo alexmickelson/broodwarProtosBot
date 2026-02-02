@@ -1,4 +1,5 @@
 use rsbwapi::*;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 pub type MapTileInformation = HashMap<TilePosition, TileDisplayInformation>;
@@ -10,21 +11,28 @@ pub struct MapInformation {
   pub tile_information: MapTileInformation,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TileDisplayInformation {
   pub is_walkable: bool,
   pub is_buildable: bool,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SerializablePosition {
+  pub x: i32,
+  pub y: i32,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct UnitDisplayInformation {
-  pub unit_type: UnitType,
-  pub position: Position, // Pixel position
+  pub unit_type: String,
+  pub pixel_position: SerializablePosition,
   pub unit_id: usize,
   pub unit_width: i32,
   pub unit_height: i32,
   pub player_id: Option<i32>,
   pub player_name: Option<String>,
+  pub target_pixel_position: Option<SerializablePosition>,
 }
 
 pub fn get_map_information_from_game(game: &Game) -> MapInformation {
@@ -69,14 +77,28 @@ pub fn get_unit_display_information(game: &Game) -> Vec<UnitDisplayInformation> 
       let unit_id = unit.get_id();
       let player = unit.get_player();
 
+      let target_position = unit.get_target_position().or_else(|| {
+        unit.get_target().and_then(|target_unit| {
+          if target_unit.exists() {
+            Some(target_unit.get_position())
+          } else {
+            None
+          }
+        })
+      });
+
       Some(UnitDisplayInformation {
-        unit_type,
-        position,
+        unit_type: unit_type.name().to_string(),
+        pixel_position: SerializablePosition {
+          x: position.x,
+          y: position.y,
+        },
         unit_id,
         unit_width: unit_type.width(),
         unit_height: unit_type.height(),
         player_id: Some(player.get_id() as i32),
         player_name: Some(player.get_name()),
+        target_pixel_position: target_position.map(|p| SerializablePosition { x: p.x, y: p.y }),
       })
     })
     .collect()
