@@ -6,7 +6,10 @@ mod state {
 pub mod webserver {
   pub mod build_history;
   pub mod build_status;
+  pub mod frame_stats;
   pub mod game_speed;
+  pub mod map_info;
+  pub mod unit_info;
   pub mod web_server;
 
   pub use build_status::SharedBuildStatus;
@@ -15,6 +18,7 @@ pub mod webserver {
 }
 pub mod utils {
   pub mod debug_utils;
+  pub mod map_information;
   pub mod military_management;
   pub mod unit_utils;
   pub mod worker_management;
@@ -40,24 +44,27 @@ fn main() {
   let shared_speed = SharedGameSpeed::new(42); // Default speed (slowest)
   let build_status = SharedBuildStatus::new();
 
-  // Start web server in a separate thread
-  let shared_speed_clone = shared_speed.clone();
-  let build_status_clone = build_status.clone();
-  let game_state_for_thread = game_state.clone();
+  let game_state_for_web = game_state.clone();
+  let shared_speed_for_web = shared_speed.clone();
+  let build_status_for_web = build_status.clone();
   std::thread::spawn(move || {
     let runtime = tokio::runtime::Runtime::new().unwrap();
     runtime.block_on(start_web_server(
-      shared_speed_clone,
-      build_status_clone,
-      game_state_for_thread,
+      shared_speed_for_web,
+      build_status_for_web,
+      game_state_for_web,
     ));
   });
 
+  let game_state_for_bot = game_state.clone();
+  let shared_speed_for_bot = shared_speed.clone();
+  let build_status_for_bot = build_status.clone();
+
   rsbwapi::start(move |_game| {
     ProtosBot::new(
-      game_state.clone(),
-      shared_speed.clone(),
-      build_status.clone(),
+      game_state_for_bot,
+      shared_speed_for_bot,
+      build_status_for_bot,
     )
   });
 }

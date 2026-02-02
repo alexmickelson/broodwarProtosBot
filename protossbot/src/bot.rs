@@ -2,11 +2,12 @@ use crate::{
   state::game_state::GameState,
   utils::{
     build_order::{build_location_utils, build_manager, next_thing_to_build::BuildStatusMap},
-    debug_utils, military_management, worker_management,
+    debug_utils, map_information, military_management, worker_management,
   },
 };
 use rsbwapi::*;
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 fn draw_unit_ids(game: &Game) {
   for unit in game.get_all_units() {
@@ -36,11 +37,14 @@ impl AiModule for ProtosBot {
     };
 
     locked_state.base_locations = build_location_utils::get_base_locations(game, &player);
+    locked_state.map_information = Some(map_information::get_map_information_from_game(game));
 
     println!("Game started on map: {}", game.map_file_name());
   }
 
   fn on_frame(&mut self, game: &Game) {
+    let frame_start = std::time::Instant::now();
+
     // println!("Frame {}", game.get_frame_count());
     let Ok(mut locked_state) = self.game_state.lock() else {
       return;
@@ -74,7 +78,12 @@ impl AiModule for ProtosBot {
 
     military_management::military_onframe(game, &player, &mut locked_state);
     debug_utils::print_debug_build_status(game, &player, &locked_state);
+    locked_state.unit_display_information = map_information::get_unit_display_information(game);
+
     draw_unit_ids(game);
+
+    // Update frame timing statistics - keep last 100 frames
+    update_frame_timing(&mut locked_state, frame_start);
   }
 
   fn on_unit_create(&mut self, game: &Game, unit: Unit) {
@@ -121,4 +130,14 @@ impl ProtosBot {
       build_status,
     }
   }
+}
+
+fn update_frame_timing(state: &mut GameState, frame_start: Instant) {
+  let frame_duration = frame_start.elapsed();
+  if state.recent_frame_times_ns.len() >= 100 {
+    state.recent_frame_times_ns.pop_front();
+  }
+  state
+    .recent_frame_times_ns
+    .push_back(frame_duration.as_nanos());
 }
