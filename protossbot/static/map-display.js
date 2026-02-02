@@ -61,6 +61,7 @@ async function fetchUnits() {
     const response = await fetch("http://127.0.0.1:3333/api/unit-info");
     if (response.ok) {
       const units = await response.json();
+      console.log(units);
       renderUnits(units);
     }
   } catch (error) {
@@ -134,7 +135,6 @@ function renderMap(mapData) {
 
 function renderUnits(units) {
   if (!unitsGroup) return;
-
   // Create a set of current unit IDs
   const currentUnitIds = new Set(units.map((unit) => unit.unit_id));
 
@@ -148,6 +148,8 @@ function renderUnits(units) {
   });
 
   // Update or create units
+  let createdMinerals = 0;
+  let updatedMinerals = 0;
   units.forEach((unit) => {
     const unitId = unit.unit_id;
     const x = unit.pixel_position.x * PIXEL_TO_DISPLAY_SCALE;
@@ -213,6 +215,12 @@ function renderUnits(units) {
       title.textContent = `${unit.unit_type}\nID: ${unit.unit_id}\nPlayer: ${unit.player_name || "Unknown"}`;
     }
   });
+
+  const renderedRects = unitsGroup.querySelectorAll("rect[data-unit-id]").length;
+  const mineralRects = Array.from(unitsGroup.querySelectorAll("rect[data-unit-id]")).filter(r => {
+    const title = r.querySelector("title");
+    return title && title.textContent.includes("Mineral_Field");
+  }).length;
 }
 
 function getUnitColor(playerId, playerName) {
@@ -223,14 +231,14 @@ function getUnitColor(playerId, playerName) {
 
   // Color units based on player ID
   const colors = [
-    "#C26565", 
-    "#5E5EC1", 
-    "#366C36", 
-    "#8F8F2B", 
-    "#743B74", 
-    "#3B6E6E", 
-    "#836547", 
-    "#3B2336", 
+    "#C26565",
+    "#5E5EC1",
+    "#366C36",
+    "#8F8F2B",
+    "#743B74",
+    "#3B6E6E",
+    "#836547",
+    "#3B2336",
   ];
 
   if (playerId !== null && playerId >= 0 && playerId < colors.length) {

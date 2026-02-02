@@ -62,20 +62,36 @@ pub fn get_map_information_from_game(game: &Game) -> MapInformation {
 }
 
 pub fn get_unit_display_information(game: &Game) -> Vec<UnitDisplayInformation> {
-  game
+  let neutral_unit_ids = game
+    .get_static_neutral_units()
+    .iter()
+    .map(|u| u.get_id())
+    .collect::<Vec<_>>();
+
+  let non_neutral_units: Vec<UnitDisplayInformation> = game
     .get_all_units()
     .iter()
+    .filter(|unit| !neutral_unit_ids.contains(&unit.get_id()))
     .filter_map(|unit| {
       let unit_type = unit.get_type();
 
       // Skip unknown or invalid unit types
-      if unit_type == UnitType::Unknown || unit_type == UnitType::None {
+      if unit_type == UnitType::Unknown
+        || unit_type == UnitType::None
+        || unit_type.is_neutral()
+        || unit_type.is_mineral_field()
+      {
         return None;
       }
 
       let position = unit.get_position();
       let unit_id = unit.get_id();
       let player = unit.get_player();
+
+      // Skip neutral units
+      if player.get_name() == "Neutral" {
+        return None;
+      }
 
       let target_position = unit.get_target_position().or_else(|| {
         unit.get_target().and_then(|target_unit| {
@@ -101,5 +117,47 @@ pub fn get_unit_display_information(game: &Game) -> Vec<UnitDisplayInformation> 
         target_pixel_position: target_position.map(|p| SerializablePosition { x: p.x, y: p.y }),
       })
     })
+    .collect();
+
+  let minerals: Vec<UnitDisplayInformation> = game
+    .get_static_minerals()
+    .iter()
+    .filter_map(|mineral| {
+      let pos = mineral.get_initial_position();
+      Some(UnitDisplayInformation {
+        unit_type: UnitType::Resource_Mineral_Field.name().to_string(),
+        pixel_position: SerializablePosition { x: pos.x, y: pos.y },
+        unit_id: mineral.get_id(),
+        unit_width: UnitType::Resource_Mineral_Field.width(),
+        unit_height: UnitType::Resource_Mineral_Field.height(),
+        player_id: None,
+        player_name: Some("Neutral".to_owned()),
+        target_pixel_position: None,
+      })
+    })
+    .collect();
+
+  let geysers: Vec<UnitDisplayInformation> = game
+    .get_static_geysers()
+    .iter()
+    .filter_map(|geyser| {
+      let pos = geyser.get_initial_position();
+      Some(UnitDisplayInformation {
+        unit_type: UnitType::Resource_Vespene_Geyser.name().to_string(),
+        pixel_position: SerializablePosition { x: pos.x, y: pos.y },
+        unit_id: geyser.get_id(),
+        unit_width: UnitType::Resource_Vespene_Geyser.width(),
+        unit_height: UnitType::Resource_Vespene_Geyser.height(),
+        player_id: None,
+        player_name: Some("Neutral".to_owned()),
+        target_pixel_position: None,
+      })
+    })
+    .collect();
+
+  non_neutral_units
+    .into_iter()
+    .chain(minerals)
+    .chain(geysers)
     .collect()
 }
