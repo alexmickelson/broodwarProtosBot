@@ -39,7 +39,7 @@
 
   /* Player colors (StarCraft standard) */
   --color-player-red: #c26565;
-  --color-player-blue: #5e5ec1;
+  --color-player-blue: #4848c7;
   --color-player-teal: #366c36;
   --color-player-purple: #743b74;
   --color-player-orange: #8f8f2b;
@@ -353,6 +353,39 @@ button:active {
   stroke: var(--color-unit-target-line);
   stroke-width: 0.5;
   /* opacity: 0.6; */
+}
+
+.svg-base-path {
+  fill: none;
+  stroke: var(--color-unit-target-line);
+  stroke-width: 1;
+  opacity: 0.6;
+}
+
+.svg-base-box {
+  fill: none;
+  stroke: var(--color-success);
+  stroke-width: 1.5;
+  opacity: 0.5;
+}
+
+.svg-checked-valid {
+  fill: var(--color-success-dark);
+  opacity: 0.3;
+  stroke: none;
+}
+
+.svg-checked-invalid {
+  fill: var(--color-error-dark);
+  opacity: 0.3;
+  stroke: none;
+}
+
+.svg-base-id-text {
+  fill: var(--color-gold-primary);
+  font-size: 14px;
+  font-weight: bold;
+  pointer-events: none;
 }
 
 .upgrade-section-title {

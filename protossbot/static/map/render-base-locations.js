@@ -26,7 +26,7 @@ export function renderBaseLocations(baseLocations) {
         "path",
       );
       path.setAttribute("d", pathData);
-      path.classList.add("base-path");
+      path.classList.add("svg-base-path");
       baseLocationsGroup.appendChild(path);
     }
 
@@ -44,7 +44,7 @@ export function renderBaseLocations(baseLocations) {
       rect.setAttribute("width", TILE_SIZE);
       rect.setAttribute("height", TILE_SIZE);
       rect.classList.add(
-        checked.is_valid ? "checked-valid" : "checked-invalid",
+        checked.is_valid ? "svg-checked-valid" : "svg-checked-invalid",
       );
       baseLocationsGroup.appendChild(rect);
     });
@@ -58,7 +58,7 @@ export function renderBaseLocations(baseLocations) {
     baseBox.setAttribute("y", baseY);
     baseBox.setAttribute("width", TILE_SIZE * 4);
     baseBox.setAttribute("height", TILE_SIZE * 3);
-    baseBox.classList.add("base-box");
+    baseBox.classList.add("svg-base-box");
     baseLocationsGroup.appendChild(baseBox);
 
     // Draw base ID text
@@ -67,8 +67,8 @@ export function renderBaseLocations(baseLocations) {
     text.setAttribute("y", baseY + TILE_SIZE * 1.5);
     text.setAttribute("text-anchor", "middle");
     text.setAttribute("dominant-baseline", "middle");
-    text.classList.add("base-id-text");
-    text.textContent = `Base ${base.id}`;
+    text.classList.add("svg-base-id-text");
+    text.textContent = base.id;
     baseLocationsGroup.appendChild(text);
   });
 }
